@@ -122,7 +122,7 @@ app.get('/api/user', async (req, res) => {
   });
 });
 
-// Logout route
+// Logout route 
 app.get('/logout', async (req, res) => {
     await db.query(`DELETE FROM sessions WHERE session_id = $1`, [req.sessionID]);
 
