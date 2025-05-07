@@ -107,19 +107,19 @@ app.get('/auth/osu/callback', async (req, res) => {
 
 // API route to get current user info
 app.get('/api/user', async (req, res) => {
-  if (!req.session.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
+    if (!req.session.user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
 
-  const result = await db.query(
-    'SELECT role FROM users WHERE user_id = $1',
-    [req.session.user.id]
-  );
+    const result = await db.query(
+        'SELECT role FROM users WHERE user_id = $1',
+        [req.session.user.id]
+    );
 
-  res.json({
-    ...req.session.user,
-    role: result.rows[0]?.role || 'player'
-  });
+    res.json({
+        ...req.session.user,
+        role: result.rows[0]?.role || 'player'
+    });
 });
 
 // Logout route 
@@ -149,30 +149,31 @@ app.get('/admin/logged-users', async (req, res) => {
 });
 
 
-app.post('/admin/set-role', express.json(), async (req, res) => {
-    const { userId, role } = req.body;
-  
-    // Verifica que quien hace el cambio es admin
-    if (!req.session.user) return res.status(401).send('Not authenticated');
-  
-    const adminCheck = await db.query(
-      'SELECT role FROM users WHERE user_id = $1',
-      [req.session.user.id]
-    );
-  
-    if (adminCheck.rows[0]?.role !== 'admin') {
-      return res.status(403).send('Access denied');
+app.get('/admin/logged-users', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).send('Not logged in');
     }
-  
-    // Actualiza el rol del usuario indicado
-    await db.query(
-      'UPDATE users SET role = $1 WHERE user_id = $2',
-      [role, userId]
+
+    const result = await db.query(
+        'SELECT role FROM users WHERE user_id = $1',
+        [req.session.user.id]
     );
-  
-    res.sendStatus(200);
-  });
-  
+    const user = result.rows[0];
+
+    if (!user || user.role !== 'admin') {
+        return res.status(403).send('Access denied: not an admin');
+    }
+
+    // Obtener todos los usuarios registrados
+    const users = await db.query(`
+      SELECT u.user_id, u.username, u.role, s.avatar_url
+      FROM users u
+      LEFT JOIN sessions s ON u.user_id = s.user_id
+    `);
+
+    res.json(users.rows);
+});
+
 
 // Start the server
 const PORT = process.env.PORT || 3000;
