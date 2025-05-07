@@ -45,8 +45,8 @@ fetch(`${API_BASE}/admin/logged-users`)
 const saveButton = document.createElement('button');
 saveButton.textContent = 'Guardar cambios';
 saveButton.style.marginTop = '1rem';
-saveButton.className = 'button';
 
+saveButton.className = 'button';
 saveButton.style.cssText = `
   background-color: #1b2838;
   color: #66c0f4;
