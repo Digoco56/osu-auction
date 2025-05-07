@@ -13,7 +13,7 @@ app.use(session({
     saveUninitialized: false
 }));
 
-// Serve static files from the client directory
+// Serve static files from the client directory 
 app.use(express.static(path.join(__dirname, '../client')));
 
 // Route to initiate OAuth2 login with osu!
