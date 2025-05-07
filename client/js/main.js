@@ -16,6 +16,7 @@ fetch(`${API_BASE}/api/user`)
   `;
 
   if (user.role === 'admin') {
+    console.log("admin entra");
     const adminBtn = document.createElement('a');
     adminBtn.href = '/admin.html';
     adminBtn.className = 'button';
