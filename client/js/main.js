@@ -1,13 +1,5 @@
 const API_BASE = 'https://osu-auction.onrender.com';
 
-if (user.role === 'admin') {
-  const adminBtn = document.createElement('a');
-  adminBtn.href = '/admin.html';
-  adminBtn.className = 'button';
-  adminBtn.textContent = 'Admin Panel';
-  document.body.appendChild(adminBtn);
-}
-
 fetch(`${API_BASE}/api/user`)
 .then(response => {
   if (!response.ok) {
@@ -22,6 +14,14 @@ fetch(`${API_BASE}/api/user`)
     <p><strong>ID:</strong> ${user.id}</p>
     <img src="${user.avatar_url}" alt="Avatar">
   `;
+
+  if (user.role === 'admin') {
+    const adminBtn = document.createElement('a');
+    adminBtn.href = '/admin.html';
+    adminBtn.className = 'button';
+    adminBtn.textContent = 'Admin Panel';
+    document.body.appendChild(adminBtn);
+  }
 })
 .catch(error => {
   console.error('Error fetching user info:', error);
