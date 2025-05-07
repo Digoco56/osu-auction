@@ -166,11 +166,10 @@ app.get('/admin/logged-users', async (req, res) => {
 
     // Obtener todos los usuarios registrados
     const users = await db.query(`
-      SELECT u.user_id, u.username, u.role, s.avatar_url
-      FROM users u
-      LEFT JOIN sessions s ON u.user_id = s.user_id
-    `);
-
+        SELECT user_id, username, role
+        FROM users
+      `);
+      
     res.json(users.rows);
 });
 
