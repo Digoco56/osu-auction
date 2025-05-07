@@ -1,27 +1,21 @@
-const lista = document.getElementById('lista');
-const entrada = document.getElementById('entrada');
+const API_BASE = 'https://osu-auction.onrender.com';
 
-async function cargar() {
-  const res = await fetch('http://localhost:3000/api/items');
-  const items = await res.json();
-  lista.innerHTML = '';
-  items.forEach(i => {
-    const li = document.createElement('li');
-    li.textContent = i;
-    lista.appendChild(li);
-  });
-}
-
-async function añadir() {
-  const item = entrada.value;
-  if (!item) return;
-  await fetch('http://localhost:3000/api/items', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item })
-  });
-  entrada.value = '';
-  cargar();
-}
-
-cargar();
+fetch(`${API_BASE}/api/user`)
+.then(response => {
+  if (!response.ok) {
+    window.location.href = '/';
+  }
+  return response.json();
+})
+.then(user => {
+  const userInfoDiv = document.getElementById('user-info');
+  userInfoDiv.innerHTML = `
+    <p><strong>Username:</strong> ${user.username}</p>
+    <p><strong>ID:</strong> ${user.id}</p>
+    <img src="${user.avatar_url}" alt="Avatar">
+  `;
+})
+.catch(error => {
+  console.error('Error fetching user info:', error);
+  window.location.href = '/';
+});
