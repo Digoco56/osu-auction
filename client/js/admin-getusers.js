@@ -47,6 +47,17 @@ saveButton.textContent = 'Guardar cambios';
 saveButton.style.marginTop = '1rem';
 saveButton.className = 'button';
 
+saveButton.style.cssText = `
+  background-color: #1b2838;
+  color: #66c0f4;
+  border: none;
+  padding: 10px 16px;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-top: 1rem;
+`;
+
 saveButton.onclick = async () => {
   const entries = Object.entries(pendingUpdates);
   for (const [userId, role] of entries) {
