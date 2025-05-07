@@ -106,12 +106,20 @@ app.get('/auth/osu/callback', async (req, res) => {
 });
 
 // API route to get current user info
-app.get('/api/user', (req, res) => {
-    if (req.session.user) {
-        res.json(req.session.user);
-    } else {
-        res.status(401).json({ error: 'Not authenticated' });
-    }
+app.get('/api/user', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const result = await db.query(
+    'SELECT role FROM users WHERE user_id = $1',
+    [req.session.user.id]
+  );
+
+  res.json({
+    ...req.session.user,
+    role: result.rows[0]?.role || 'player'
+  });
 });
 
 // Logout route
