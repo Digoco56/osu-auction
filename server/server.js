@@ -148,6 +148,32 @@ app.get('/admin/logged-users', async (req, res) => {
     res.json(sessionsResult.rows);
 });
 
+
+app.post('/admin/set-role', express.json(), async (req, res) => {
+    const { userId, role } = req.body;
+  
+    // Verifica que quien hace el cambio es admin
+    if (!req.session.user) return res.status(401).send('Not authenticated');
+  
+    const adminCheck = await db.query(
+      'SELECT role FROM users WHERE user_id = $1',
+      [req.session.user.id]
+    );
+  
+    if (adminCheck.rows[0]?.role !== 'admin') {
+      return res.status(403).send('Access denied');
+    }
+  
+    // Actualiza el rol del usuario indicado
+    await db.query(
+      'UPDATE users SET role = $1 WHERE user_id = $2',
+      [role, userId]
+    );
+  
+    res.sendStatus(200);
+  });
+  
+
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
