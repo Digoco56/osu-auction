@@ -3,12 +3,8 @@ const express = require('express');
 const axios = require('axios');
 const session = require('express-session');
 const path = require('path');
-const cors = require('cors');
 
 const app = express();
-
-app.use(cors());
-app.use(express.json());
 
 // Configure session middleware
 app.use(session({
