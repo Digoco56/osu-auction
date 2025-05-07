@@ -131,24 +131,7 @@ app.get('/logout', async (req, res) => {
     });
 });
 
-// Admin route to see logged-in users
-app.get('/admin/logged-users', async (req, res) => {
-    if (!req.session.user) {
-        return res.status(401).send('Not logged in');
-    }
-
-    const result = await db.query(`SELECT role FROM users WHERE user_id = $1`, [req.session.user.id]);
-    const user = result.rows[0];
-
-    if (!user || user.role !== 'admin') {
-        return res.status(403).send('Access denied: not an admin');
-    }
-
-    const sessionsResult = await db.query(`SELECT * FROM sessions`);
-    res.json(sessionsResult.rows);
-});
-
-
+// Admin route to see users registered
 app.get('/admin/logged-users', async (req, res) => {
     if (!req.session.user) {
         return res.status(401).send('Not logged in');
