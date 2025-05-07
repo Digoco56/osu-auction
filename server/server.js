@@ -3,8 +3,28 @@ const express = require('express');
 const axios = require('axios');
 const session = require('express-session');
 const path = require('path');
+const db = require('./db');
 
 const app = express();
+
+// Crear las tablas si no existen (PostgreSQL)
+db.query(`
+  CREATE TABLE IF NOT EXISTS users (
+    user_id BIGINT PRIMARY KEY,
+    username TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'player'
+  );
+`);
+
+db.query(`
+  CREATE TABLE IF NOT EXISTS sessions (
+    session_id TEXT PRIMARY KEY,
+    user_id BIGINT REFERENCES users(user_id),
+    username TEXT,
+    avatar_url TEXT,
+    login_time TIMESTAMP
+  );
+`);
 
 // Configure session middleware
 app.use(session({
@@ -56,8 +76,27 @@ app.get('/auth/osu/callback', async (req, res) => {
             }
         });
 
+        const user = userResponse.data;
+
         // Store user info in session
-        req.session.user = userResponse.data;
+        req.session.user = user;
+
+        // Save user in the database or update username if already exists
+        await db.query(`
+            INSERT INTO users (user_id, username)
+            VALUES ($1, $2)
+            ON CONFLICT (user_id) DO UPDATE SET username = EXCLUDED.username
+        `, [user.id, user.username]);
+
+        await db.query(`
+            INSERT INTO sessions (session_id, user_id, username, avatar_url, login_time)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (session_id) DO UPDATE SET
+                user_id = EXCLUDED.user_id,
+                username = EXCLUDED.username,
+                avatar_url = EXCLUDED.avatar_url,
+                login_time = EXCLUDED.login_time
+        `, [req.sessionID, user.id, user.username, user.avatar_url, new Date().toISOString()]);
 
         res.redirect('/dashboard.html');
     } catch (error) {
@@ -76,10 +115,29 @@ app.get('/api/user', (req, res) => {
 });
 
 // Logout route
-app.get('/logout', (req, res) => {
+app.get('/logout', async (req, res) => {
+    await db.query(`DELETE FROM sessions WHERE session_id = $1`, [req.sessionID]);
+
     req.session.destroy(() => {
         res.redirect('/');
     });
+});
+
+// Admin route to see logged-in users
+app.get('/admin/logged-users', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).send('Not logged in');
+    }
+
+    const result = await db.query(`SELECT role FROM users WHERE user_id = $1`, [req.session.user.id]);
+    const user = result.rows[0];
+
+    if (!user || user.role !== 'admin') {
+        return res.status(403).send('Access denied: not an admin');
+    }
+
+    const sessionsResult = await db.query(`SELECT * FROM sessions`);
+    res.json(sessionsResult.rows);
 });
 
 // Start the server
