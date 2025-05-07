@@ -81,6 +81,11 @@ app.get('/auth/osu/callback', async (req, res) => {
         // Store user info in session
         req.session.user = user;
 
+        await db.query(
+            'DELETE FROM sessions WHERE user_id = $1',
+            [user.id]
+        );
+
         // Save user in the database or update username if already exists
         await db.query(`
             INSERT INTO users (user_id, username)
@@ -152,7 +157,7 @@ app.get('/admin/logged-users', async (req, res) => {
         SELECT user_id, username, role
         FROM users
       `);
-      
+
     res.json(users.rows);
 });
 
