@@ -11,7 +11,7 @@ async function loadConfiguration() {
   const configuration = await response.json();
   statusMessage.textContent = configuration.spreadsheetConfigured
     ? 'Google Sheets is configured.'
-    : 'Add GOOGLE_SHEETS_ID in the server environment first.';
+    : 'Configure the Apps Script URL and token in the server environment first.';
   sheetInput.value = configuration.sections.map(section => section.sheet_name).join('\n');
   renderSections(configuration.sections);
 }

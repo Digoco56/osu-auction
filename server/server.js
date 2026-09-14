@@ -6,6 +6,8 @@ const path = require('path');
 const db = require('./db');
 
 const app = express();
+const mappoolCache = new Map();
+const MAPPOOL_CACHE_TTL_MS = 60 * 1000;
 
 // Crear las tablas si no existen (PostgreSQL)
 db.query(`
@@ -31,6 +33,15 @@ db.query(`
         sheet_name TEXT PRIMARY KEY,
         is_public BOOLEAN NOT NULL DEFAULT FALSE,
         display_order INTEGER NOT NULL DEFAULT 0
+    );
+`);
+
+db.query(`
+    CREATE TABLE IF NOT EXISTS mappool_data (
+        sheet_name TEXT PRIMARY KEY,
+        headers JSONB NOT NULL,
+        rows JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 `);
 
@@ -161,6 +172,11 @@ async function readGoogleSheet(sheetName) {
         throw new Error('Google Apps Script configuration is incomplete');
     }
 
+    const cached = mappoolCache.get(sheetName);
+    if (cached && Date.now() - cached.createdAt < MAPPOOL_CACHE_TTL_MS) {
+        return cached.rows;
+    }
+
     const response = await axios.get(process.env.GOOGLE_APPS_SCRIPT_URL, {
         params: {
             token: process.env.GOOGLE_APPS_SCRIPT_TOKEN,
@@ -178,26 +194,40 @@ async function readGoogleSheet(sheetName) {
         String(header).trim() || `column_${index + 1}`
     ));
 
-    return rows.slice(headerIndex >= 0 ? headerIndex + 1 : 1)
+    const normalizedRows = rows.slice(headerIndex >= 0 ? headerIndex + 1 : 1)
         .filter(row => row.some(value => String(value ?? '').trim() !== ''))
         .map(row => Object.fromEntries(
             normalizedHeaders.map((header, index) => [header, row[index] ?? ''])
         ));
+
+    const result = {
+        headers: normalizedHeaders,
+        rows: normalizedRows
+    };
+
+    mappoolCache.set(sheetName, {
+        createdAt: Date.now(),
+        rows: result
+    });
+
+    return result;
 }
 
 app.get('/api/mappool', async (req, res) => {
     try {
         const sections = await db.query(`
-            SELECT sheet_name, display_order
-            FROM mappool_sections
-            WHERE is_public = TRUE
-            ORDER BY display_order, sheet_name
+            SELECT s.sheet_name, d.headers, d.rows
+            FROM mappool_sections s
+            JOIN mappool_data d ON d.sheet_name = s.sheet_name
+            WHERE s.is_public = TRUE
+            ORDER BY s.display_order, s.sheet_name
         `);
 
-        const data = await Promise.all(sections.rows.map(async section => ({
+        const data = sections.rows.map(section => ({
             name: section.sheet_name,
-            rows: await readGoogleSheet(section.sheet_name)
-        })));
+            headers: section.headers,
+            rows: section.rows
+        }));
 
         res.json({ sections: data });
     } catch (error) {
@@ -228,6 +258,14 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
         .filter(Boolean))];
 
     try {
+        const publicSections = names.filter(sheetName => (
+            sections.find(section => section.name === sheetName)?.isPublic
+        ));
+        const downloaded = await Promise.all(publicSections.map(async sheetName => ({
+            sheetName,
+            data: await readGoogleSheet(sheetName)
+        })));
+
         await db.query('DELETE FROM mappool_sections');
         for (const [displayOrder, sheetName] of names.entries()) {
             await db.query(
@@ -235,6 +273,22 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
                 [sheetName, Boolean(sections.find(section => section.name === sheetName)?.isPublic), displayOrder]
             );
         }
+
+        for (const section of downloaded) {
+            await db.query(`
+                INSERT INTO mappool_data (sheet_name, headers, rows, updated_at)
+                VALUES ($1, $2::jsonb, $3::jsonb, NOW())
+                ON CONFLICT (sheet_name) DO UPDATE SET
+                    headers = EXCLUDED.headers,
+                    rows = EXCLUDED.rows,
+                    updated_at = NOW()
+            `, [
+                section.sheetName,
+                JSON.stringify(section.data.headers),
+                JSON.stringify(section.data.rows)
+            ]);
+        }
+
         res.sendStatus(204);
     } catch (error) {
         throw error;
