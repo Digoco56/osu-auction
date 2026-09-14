@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
-const { parse } = require('csv-parse/sync');
 const session = require('express-session');
 const path = require('path');
 const db = require('./db');
@@ -158,21 +157,17 @@ async function requireAdmin(req, res, next) {
 }
 
 async function readGoogleSheet(sheetName) {
-    if (!process.env.GOOGLE_SHEETS_ID) {
-        throw new Error('GOOGLE_SHEETS_ID is not configured');
+    if (!process.env.GOOGLE_APPS_SCRIPT_URL || !process.env.GOOGLE_APPS_SCRIPT_TOKEN) {
+        throw new Error('Google Apps Script configuration is incomplete');
     }
 
-    const url = new URL(
-        `https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEETS_ID}/gviz/tq`
-    );
-    url.searchParams.set('tqx', 'out:csv');
-    url.searchParams.set('sheet', sheetName);
-
-    const response = await axios.get(url.toString(), { responseType: 'text' });
-    const rows = parse(response.data, {
-        skip_empty_lines: true,
-        relax_column_count: true
+    const response = await axios.get(process.env.GOOGLE_APPS_SCRIPT_URL, {
+        params: {
+            token: process.env.GOOGLE_APPS_SCRIPT_TOKEN,
+            sheet: sheetName
+        }
     });
+    const rows = response.data.rows || [];
 
     const selectedRows = rows.map(row => row.slice(26, 43));
     const headers = selectedRows.shift() || [];
@@ -215,7 +210,10 @@ app.get('/admin/mappool', requireAdmin, async (req, res) => {
         ORDER BY display_order, sheet_name
     `);
     res.json({
-        spreadsheetConfigured: Boolean(process.env.GOOGLE_SHEETS_ID),
+        spreadsheetConfigured: Boolean(
+            process.env.GOOGLE_APPS_SCRIPT_URL &&
+            process.env.GOOGLE_APPS_SCRIPT_TOKEN
+        ),
         sections: result.rows
     });
 });
