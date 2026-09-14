@@ -169,13 +169,16 @@ async function readGoogleSheet(sheetName) {
     });
     const rows = response.data.rows || [];
 
-    const selectedRows = rows.map(row => row.slice(26, 43));
-    const headers = selectedRows.shift() || [];
+    const headerIndex = rows.findIndex(row => {
+        const values = row.map(value => String(value).trim().toLowerCase());
+        return values.includes('pick') && values.includes('mod');
+    });
+    const headers = rows[headerIndex >= 0 ? headerIndex : 0] || [];
     const normalizedHeaders = headers.map((header, index) => (
         String(header).trim() || `column_${index + 1}`
     ));
 
-    return selectedRows
+    return rows.slice(headerIndex >= 0 ? headerIndex + 1 : 1)
         .filter(row => row.some(value => String(value ?? '').trim() !== ''))
         .map(row => Object.fromEntries(
             normalizedHeaders.map((header, index) => [header, row[index] ?? ''])
