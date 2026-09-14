@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
+const { parse } = require('csv-parse/sync');
 const session = require('express-session');
 const path = require('path');
 const db = require('./db');
@@ -24,6 +25,14 @@ db.query(`
     avatar_url TEXT,
     login_time TIMESTAMP
   );
+`);
+
+db.query(`
+    CREATE TABLE IF NOT EXISTS mappool_sections (
+        sheet_name TEXT PRIMARY KEY,
+        is_public BOOLEAN NOT NULL DEFAULT FALSE,
+        display_order INTEGER NOT NULL DEFAULT 0
+    );
 `);
 
 // Configure session middleware
@@ -134,6 +143,86 @@ app.get('/logout', async (req, res) => {
     req.session.destroy(() => {
         res.redirect('/');
     });
+});
+
+async function requireAdmin(req, res, next) {
+    if (!req.session.user) return res.status(401).send('Not authenticated');
+
+    const result = await db.query(
+        'SELECT role FROM users WHERE user_id = $1',
+        [req.session.user.id]
+    );
+
+    if (result.rows[0]?.role !== 'admin') return res.status(403).send('Access denied');
+    next();
+}
+
+async function readGoogleSheet(sheetName) {
+    if (!process.env.GOOGLE_SHEETS_ID) {
+        throw new Error('GOOGLE_SHEETS_ID is not configured');
+    }
+
+    const url = new URL(
+        `https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEETS_ID}/gviz/tq`
+    );
+    url.searchParams.set('tqx', 'out:csv');
+    url.searchParams.set('sheet', sheetName);
+
+    const response = await axios.get(url.toString(), { responseType: 'text' });
+    return parse(response.data, { columns: true, skip_empty_lines: true, relax_column_count: true });
+}
+
+app.get('/api/mappool', async (req, res) => {
+    try {
+        const sections = await db.query(`
+            SELECT sheet_name, display_order
+            FROM mappool_sections
+            WHERE is_public = TRUE
+            ORDER BY display_order, sheet_name
+        `);
+
+        const data = await Promise.all(sections.rows.map(async section => ({
+            name: section.sheet_name,
+            rows: await readGoogleSheet(section.sheet_name)
+        })));
+
+        res.json({ sections: data });
+    } catch (error) {
+        console.error('Mappool fetch error:', error.message);
+        res.status(502).json({ error: 'Could not load the mappool' });
+    }
+});
+
+app.get('/admin/mappool', requireAdmin, async (req, res) => {
+    const result = await db.query(`
+        SELECT sheet_name, is_public, display_order
+        FROM mappool_sections
+        ORDER BY display_order, sheet_name
+    `);
+    res.json({
+        spreadsheetConfigured: Boolean(process.env.GOOGLE_SHEETS_ID),
+        sections: result.rows
+    });
+});
+
+app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res) => {
+    const sections = Array.isArray(req.body.sections) ? req.body.sections : [];
+    const names = [...new Set(sections
+        .map(section => String(section.name || '').trim())
+        .filter(Boolean))];
+
+    try {
+        await db.query('DELETE FROM mappool_sections');
+        for (const [displayOrder, sheetName] of names.entries()) {
+            await db.query(
+                'INSERT INTO mappool_sections (sheet_name, is_public, display_order) VALUES ($1, $2, $3)',
+                [sheetName, Boolean(sections.find(section => section.name === sheetName)?.isPublic), displayOrder]
+            );
+        }
+        res.sendStatus(204);
+    } catch (error) {
+        throw error;
+    }
 });
 
 // Admin route to see users registered

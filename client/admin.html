@@ -10,6 +10,17 @@
 
 <body>
     <h1>Admin Panel</h1>
+    <section>
+        <h2>Mappool visibility</h2>
+        <p id="mappool-config-status"></p>
+        <form id="mappool-config-form">
+            <label for="mappool-sheets">Google Sheets tabs (one name per line)</label>
+            <textarea id="mappool-sheets" rows="6" placeholder="qualifiers&#10;semifinals&#10;finals"></textarea>
+            <button class="button" type="submit">Save tabs</button>
+        </form>
+        <div id="mappool-sections"></div>
+    </section>
+    <a class="button" href="/mappool.html">View mappool</a>
     <table>
         <thead>
             <tr>
@@ -24,6 +35,7 @@
     </table>
 
     <script src="js/admin-getusers.js"></script>
+    <script src="js/admin-mappool.js"></script>
 
 </body>
 
