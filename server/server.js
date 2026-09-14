@@ -45,6 +45,33 @@ db.query(`
     );
 `);
 
+db.query(`
+    CREATE TABLE IF NOT EXISTS mappool_columns (
+        sheet_name TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        header TEXT NOT NULL,
+        PRIMARY KEY (sheet_name, position)
+    );
+`);
+
+db.query(`
+    CREATE TABLE IF NOT EXISTS mappool_rows (
+        sheet_name TEXT NOT NULL,
+        row_number INTEGER NOT NULL,
+        PRIMARY KEY (sheet_name, row_number)
+    );
+`);
+
+db.query(`
+    CREATE TABLE IF NOT EXISTS mappool_values (
+        sheet_name TEXT NOT NULL,
+        row_number INTEGER NOT NULL,
+        position INTEGER NOT NULL,
+        value TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (sheet_name, row_number, position)
+    );
+`);
+
 // Configure session middleware
 app.use(session({
     secret: process.env.SESSION_SECRET,
@@ -213,21 +240,72 @@ async function readGoogleSheet(sheetName) {
     return result;
 }
 
+async function saveMappoolInDatabase(sheetName, data) {
+    await db.query('DELETE FROM mappool_values WHERE sheet_name = $1', [sheetName]);
+    await db.query('DELETE FROM mappool_rows WHERE sheet_name = $1', [sheetName]);
+    await db.query('DELETE FROM mappool_columns WHERE sheet_name = $1', [sheetName]);
+
+    for (const [position, header] of data.headers.entries()) {
+        await db.query(
+            'INSERT INTO mappool_columns (sheet_name, position, header) VALUES ($1, $2, $3)',
+            [sheetName, position, header]
+        );
+    }
+
+    for (const [rowIndex, row] of data.rows.entries()) {
+        const rowNumber = rowIndex + 4;
+        await db.query(
+            'INSERT INTO mappool_rows (sheet_name, row_number) VALUES ($1, $2)',
+            [sheetName, rowNumber]
+        );
+
+        for (const [position, header] of data.headers.entries()) {
+            await db.query(
+                `INSERT INTO mappool_values (sheet_name, row_number, position, value)
+                 VALUES ($1, $2, $3, $4)`,
+                [sheetName, rowNumber, position, String(row[header] ?? '')]
+            );
+        }
+    }
+}
+
 app.get('/api/mappool', async (req, res) => {
     try {
         const sections = await db.query(`
-            SELECT s.sheet_name, d.headers, d.rows
-            FROM mappool_sections s
-            JOIN mappool_data d ON d.sheet_name = s.sheet_name
-            WHERE s.is_public = TRUE
-            ORDER BY s.display_order, s.sheet_name
+            SELECT sheet_name
+            FROM mappool_sections
+            WHERE is_public = TRUE
+            ORDER BY display_order, sheet_name
         `);
 
-        const data = sections.rows.map(section => ({
-            name: section.sheet_name,
-            headers: section.headers,
-            rows: section.rows
-        }));
+        const data = [];
+        for (const section of sections.rows) {
+            const columns = await db.query(
+                'SELECT position, header FROM mappool_columns WHERE sheet_name = $1 ORDER BY position',
+                [section.sheet_name]
+            );
+            const rows = await db.query(
+                'SELECT row_number FROM mappool_rows WHERE sheet_name = $1 ORDER BY row_number',
+                [section.sheet_name]
+            );
+            const values = await db.query(
+                `SELECT row_number, position, value
+                 FROM mappool_values
+                 WHERE sheet_name = $1
+                 ORDER BY row_number, position`,
+                [section.sheet_name]
+            );
+            const valuesByRow = new Map();
+            values.rows.forEach(cell => {
+                if (!valuesByRow.has(cell.row_number)) valuesByRow.set(cell.row_number, {});
+                const header = columns.rows.find(column => column.position === cell.position)?.header;
+                if (header) valuesByRow.get(cell.row_number)[header] = cell.value;
+            });
+            data.push({
+                name: section.sheet_name,
+                rows: rows.rows.map(row => valuesByRow.get(row.row_number) || {})
+            });
+        }
 
         res.json({ sections: data });
     } catch (error) {
@@ -275,18 +353,7 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
         }
 
         for (const section of downloaded) {
-            await db.query(`
-                INSERT INTO mappool_data (sheet_name, headers, rows, updated_at)
-                VALUES ($1, $2::jsonb, $3::jsonb, NOW())
-                ON CONFLICT (sheet_name) DO UPDATE SET
-                    headers = EXCLUDED.headers,
-                    rows = EXCLUDED.rows,
-                    updated_at = NOW()
-            `, [
-                section.sheetName,
-                JSON.stringify(section.data.headers),
-                JSON.stringify(section.data.rows)
-            ]);
+            await saveMappoolInDatabase(section.sheetName, section.data);
         }
 
         res.sendStatus(204);
