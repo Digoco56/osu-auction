@@ -169,7 +169,22 @@ async function readGoogleSheet(sheetName) {
     url.searchParams.set('sheet', sheetName);
 
     const response = await axios.get(url.toString(), { responseType: 'text' });
-    return parse(response.data, { columns: true, skip_empty_lines: true, relax_column_count: true });
+    const rows = parse(response.data, {
+        skip_empty_lines: true,
+        relax_column_count: true
+    });
+
+    const selectedRows = rows.map(row => row.slice(26, 43));
+    const headers = selectedRows.shift() || [];
+    const normalizedHeaders = headers.map((header, index) => (
+        String(header).trim() || `column_${index + 1}`
+    ));
+
+    return selectedRows
+        .filter(row => row.some(value => String(value ?? '').trim() !== ''))
+        .map(row => Object.fromEntries(
+            normalizedHeaders.map((header, index) => [header, row[index] ?? ''])
+        ));
 }
 
 app.get('/api/mappool', async (req, res) => {
