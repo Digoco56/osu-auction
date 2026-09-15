@@ -344,10 +344,16 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
         const publicSections = names.filter(sheetName => (
             sections.find(section => section.name === sheetName)?.isPublic
         ));
-        const downloaded = await Promise.all(publicSections.map(async sheetName => ({
-            sheetName,
-            data: await readGoogleSheet(sheetName)
-        })));
+        const downloaded = await Promise.all(publicSections.map(async sheetName => {
+            try {
+                return {
+                    sheetName,
+                    data: await readGoogleSheet(sheetName)
+                };
+            } catch (error) {
+                throw new Error(`Google Sheets tab "${sheetName}" could not be loaded. Check that the tab name matches exactly.`);
+            }
+        }));
 
         await db.query('DELETE FROM mappool_sections');
         for (const [displayOrder, sheetName] of names.entries()) {

@@ -51,14 +51,14 @@ updateVisibilityButton.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sections })
     });
-    if (response.ok) {
-      setStatus('Mappool visibility updated!', 'success');
-    } else {
-      setStatus(await response.text(), 'error');
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new Error(error?.error || 'Mappool visibility could not be updated.');
     }
+    setStatus('Mappool visibility updated!', 'success');
   } catch (error) {
     console.error('Error updating mappool visibility:', error);
-    setStatus('Could not update mappool visibility. The current list is still visible.', 'error');
+    setStatus(error.message, 'error');
   } finally {
     updateVisibilityButton.disabled = false;
     updateVisibilityButton.removeAttribute('aria-busy');
