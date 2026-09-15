@@ -26,10 +26,12 @@ addTabsButton.addEventListener('click', () => {
   }));
 
   renderSections(sections);
-  mappoolStatusMessage.textContent = 'Tabs added. Select which tabs are public, then update visibility.';
+  setStatus('Tabs added. Select which tabs are public, then update visibility.');
 });
 
 updateVisibilityButton.addEventListener('click', async () => {
+  updateVisibilityButton.disabled = true;
+  updateVisibilityButton.setAttribute('aria-busy', 'true');
   const names = getNames();
   const current = [...sectionsContainer.querySelectorAll('input[type="checkbox"]')];
   const sections = names.map(name => ({
@@ -41,7 +43,7 @@ updateVisibilityButton.addEventListener('click', async () => {
     sheet_name: section.name,
     is_public: section.isPublic
   })));
-  mappoolStatusMessage.textContent = 'Updating mappool visibility...';
+  setStatus('Updating mappool visibility', 'updating');
 
   try {
     const response = await fetch('/admin/mappool/config', {
@@ -49,12 +51,24 @@ updateVisibilityButton.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sections })
     });
-    mappoolStatusMessage.textContent = response.ok ? 'Mappool visibility updated.' : await response.text();
+    if (response.ok) {
+      setStatus('Mappool visibility updated!', 'success');
+    } else {
+      setStatus(await response.text(), 'error');
+    }
   } catch (error) {
     console.error('Error updating mappool visibility:', error);
-    mappoolStatusMessage.textContent = 'Could not update mappool visibility. The current list is still visible.';
+    setStatus('Could not update mappool visibility. The current list is still visible.', 'error');
+  } finally {
+    updateVisibilityButton.disabled = false;
+    updateVisibilityButton.removeAttribute('aria-busy');
   }
 });
+
+function setStatus(message, state = '') {
+  mappoolStatusMessage.className = `status-message ${state}`;
+  mappoolStatusMessage.textContent = message;
+}
 
 function getNames() {
   return sheetInput.value.split('\n').map(name => name.trim()).filter(Boolean);

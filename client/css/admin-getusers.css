@@ -165,8 +165,58 @@ img {
 }
 
 .status-message {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     min-height: 1.25rem;
     margin: 0.75rem 0;
+    transition: color 0.25s ease, transform 0.25s ease;
+}
+
+.status-message.updating::after {
+    content: '';
+    width: 1.2em;
+    overflow: hidden;
+    animation: status-dots 1.2s steps(4, end) infinite;
+}
+
+.status-message.success {
+    color: #9be7b0;
+    animation: status-success 0.55s ease-out;
+}
+
+.status-message.success::before {
+    content: '\2713';
+    font-weight: 700;
+}
+
+.status-message.error {
+    color: #ffadad;
+    animation: status-error 0.35s ease-out;
+}
+
+button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+@keyframes status-dots {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75%, 100% { content: '...'; }
+}
+
+@keyframes status-success {
+    0% { opacity: 0; transform: translateY(0.35rem) scale(0.96); }
+    70% { transform: translateY(-0.1rem) scale(1.03); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes status-error {
+    0%, 100% { transform: translateX(0); }
+    35% { transform: translateX(-0.25rem); }
+    70% { transform: translateX(0.25rem); }
 }
 
 .is-hidden {
