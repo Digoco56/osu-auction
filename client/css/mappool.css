@@ -47,7 +47,14 @@
 }
 
 .mappool-section tbody tr {
+  height: 58px;
   transition: background-color 0.2s ease;
+}
+
+.mappool-section tbody tr td {
+  padding-top: 0;
+  padding-bottom: 0;
+  vertical-align: middle;
 }
 
 .mappool-section tbody tr td {
@@ -72,8 +79,8 @@
 
 .mappool-banner {
   display: block;
-  width: 160px;
-  height: 46px;
+  width: 180px;
+  height: 58px;
   object-fit: cover;
   margin: 0 auto;
   border-radius: 5px;
@@ -90,5 +97,14 @@
 
   .mappool-section {
     padding: 1rem;
+  }
+
+  .mappool-section tbody tr {
+    height: 52px;
+  }
+
+  .mappool-banner {
+    width: 150px;
+    height: 52px;
   }
 }
