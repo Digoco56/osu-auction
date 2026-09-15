@@ -26,7 +26,10 @@ async function loadConfiguration() {
   }
 }
 
-addSheetButton.addEventListener('click', addSheet);
+addSheetButton.addEventListener('click', event => {
+  event.preventDefault();
+  addSheet();
+});
 sheetInput.addEventListener('keydown', event => {
   if (event.key === 'Enter') {
     event.preventDefault();
@@ -36,14 +39,18 @@ sheetInput.addEventListener('keydown', event => {
 
 function addSheet() {
   const name = sheetInput.value.trim();
-  if (!name) return;
+  if (!name) {
+    statusMessage.textContent = 'Enter a Google Sheets tab name first.';
+    sheetInput.focus();
+    return;
+  }
   if (sections.some(section => section.name.toLowerCase() === name.toLowerCase())) {
     statusMessage.textContent = 'That tab has already been added.';
     return;
   }
   sections.push({ name, isPublic: false });
   sheetInput.value = '';
-  statusMessage.textContent = '';
+  statusMessage.textContent = 'Tab added. Save visibility to apply the change.';
   renderSections();
 }
 
