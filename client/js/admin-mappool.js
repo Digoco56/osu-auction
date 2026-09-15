@@ -24,16 +24,24 @@ form.addEventListener('submit', async event => {
     name,
     isPublic: current.find(input => input.dataset.sheetName === name)?.checked || false
   }));
-  const response = await fetch('/admin/mappool/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sections })
-  });
-  statusMessage.textContent = response.ok ? 'Mappool tabs saved.' : await response.text();
-  if (response.ok) renderSections(sections.map(section => ({
+
+  renderSections(sections.map(section => ({
     sheet_name: section.name,
     is_public: section.isPublic
   })));
+  statusMessage.textContent = 'Saving mappool tabs...';
+
+  try {
+    const response = await fetch('/admin/mappool/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sections })
+    });
+    statusMessage.textContent = response.ok ? 'Mappool tabs saved.' : await response.text();
+  } catch (error) {
+    console.error('Error saving mappool tabs:', error);
+    statusMessage.textContent = 'Could not save mappool tabs. The current list is still visible.';
+  }
 });
 
 function renderSections(sections) {
