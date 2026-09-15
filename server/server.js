@@ -315,9 +315,17 @@ function combineMappoolColumns(rows, headerIndex) {
     const namedAbIndex = normalizedHeader.indexOf('ab');
     const namedAcIndex = normalizedHeader.indexOf('ac');
     const hasPhysicalColumns = rows.some(row => row.length > AC_COLUMN_INDEX);
-    const aaIndex = namedAaIndex >= 0 ? namedAaIndex : (hasPhysicalColumns ? AA_COLUMN_INDEX : -1);
-    const abIndex = namedAbIndex >= 0 ? namedAbIndex : (hasPhysicalColumns ? AB_COLUMN_INDEX : -1);
-    const acIndex = namedAcIndex >= 0 ? namedAcIndex : (hasPhysicalColumns ? AC_COLUMN_INDEX : -1);
+    const isCompactMappoolRange = normalizedHeader[0] === 'pick' &&
+        normalizedHeader[2] === 'mod';
+    const aaIndex = namedAaIndex >= 0
+        ? namedAaIndex
+        : (isCompactMappoolRange || hasPhysicalColumns ? (isCompactMappoolRange ? 0 : AA_COLUMN_INDEX) : -1);
+    const abIndex = namedAbIndex >= 0
+        ? namedAbIndex
+        : (isCompactMappoolRange || hasPhysicalColumns ? (isCompactMappoolRange ? 1 : AB_COLUMN_INDEX) : -1);
+    const acIndex = namedAcIndex >= 0
+        ? namedAcIndex
+        : (isCompactMappoolRange || hasPhysicalColumns ? (isCompactMappoolRange ? 2 : AC_COLUMN_INDEX) : -1);
 
     if (aaIndex < 0 || abIndex < 0 || acIndex < 0) return rows;
 
