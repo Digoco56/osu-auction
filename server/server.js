@@ -81,9 +81,6 @@ db.query(`
         setting_key TEXT PRIMARY KEY,
         boolean_value BOOLEAN NOT NULL DEFAULT TRUE
     );
-`);
-
-db.query(`
     INSERT INTO site_settings (setting_key, boolean_value)
     VALUES ('mappool_public', TRUE)
     ON CONFLICT (setting_key) DO NOTHING;
