@@ -114,6 +114,19 @@
   opacity: 0.9;
 }
 
+.mappool-bpm-icon {
+  width: 0.8rem;
+  height: 1rem;
+  background-color: currentColor;
+  -webkit-mask: url('../assets/metronome.svg') center / contain no-repeat;
+  mask: url('../assets/metronome.svg') center / contain no-repeat;
+}
+
+.mappool-drain-icon {
+  width: 0.85rem;
+  font-size: 0.78em;
+}
+
 @media (max-width: 700px) {
   body {
     padding: 1rem;
