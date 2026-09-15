@@ -57,8 +57,20 @@ function createSection(section) {
         image.alt = 'Beatmap banner';
         image.loading = 'lazy';
         cell.appendChild(image);
+      } else if (isMapLinkColumn(column)) {
+        const mapUrl = getBeatmapUrl(row[column], row, columns);
+        if (mapUrl) {
+          const link = document.createElement('a');
+          link.href = mapUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = row[column] || '';
+          cell.appendChild(link);
+        } else {
+          cell.textContent = row[column] || '';
+        }
       } else {
-        cell.textContent = row[column] || '';
+        appendMetricContent(cell, column, row[column]);
       }
       tableRow.appendChild(cell);
     });
@@ -67,4 +79,45 @@ function createSection(section) {
 
   wrapper.appendChild(table);
   return wrapper;
+}
+
+function isMapLinkColumn(column) {
+  return /map\s*(id\s*\/\s*url|\+\s*url)/i.test(column.trim());
+}
+
+function getBeatmapUrl(value, row, columns) {
+  const text = String(value ?? '').trim();
+  const directUrl = text.match(/https?:\/\/[^\s)]+/i)?.[0];
+  if (directUrl) return directUrl;
+
+  const mapIdColumn = columns.find(column => /map\s*id\s*\/\s*url/i.test(column.trim()));
+  const mapIdValue = mapIdColumn ? String(row[mapIdColumn] ?? '').trim() : text;
+  const beatmapId = mapIdValue.match(/(?:beatmaps\/|#osu\/)?(\d+)$/i)?.[1];
+  return beatmapId ? `https://osu.ppy.sh/beatmaps/${beatmapId}` : null;
+}
+
+function appendMetricContent(cell, column, value) {
+  const text = String(value ?? '');
+  const metric = column.trim().toLowerCase();
+  const icons = {
+    bpm: [String.fromCharCode(9833), 'Metronome'],
+    drain: [String.fromCharCode(9703), 'Analog clock'],
+    cs: [String.fromCharCode(9675), 'Circle']
+  };
+
+  if (!text || !icons[metric]) {
+    cell.textContent = text;
+    return;
+  }
+
+  const content = document.createElement('span');
+  content.className = 'mappool-metric';
+  const valueText = document.createElement('span');
+  valueText.textContent = text;
+  const icon = document.createElement('span');
+  icon.className = `mappool-metric-icon mappool-${metric}-icon`;
+  icon.textContent = icons[metric][0];
+  icon.setAttribute('aria-label', icons[metric][1]);
+  content.append(valueText, icon);
+  cell.appendChild(content);
 }

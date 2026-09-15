@@ -87,6 +87,33 @@
   border-radius: 5px;
 }
 
+.mappool-section td a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.45);
+  text-underline-offset: 2px;
+}
+
+.mappool-section td a:hover {
+  text-decoration-color: currentColor;
+}
+
+.mappool-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.mappool-metric-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  font-size: 0.9em;
+  line-height: 1;
+  opacity: 0.9;
+}
+
 @media (max-width: 700px) {
   body {
     padding: 1rem;
