@@ -263,6 +263,14 @@ button:disabled {
     margin-bottom: 1rem;
 }
 
+.mappool-public-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #fff;
+    margin: 0.25rem 0 1rem;
+}
+
 .sheet-row {
     display: flex;
     align-items: center;

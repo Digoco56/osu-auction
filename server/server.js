@@ -76,6 +76,19 @@ db.query(`
     );
 `);
 
+db.query(`
+    CREATE TABLE IF NOT EXISTS site_settings (
+        setting_key TEXT PRIMARY KEY,
+        boolean_value BOOLEAN NOT NULL DEFAULT TRUE
+    );
+`);
+
+db.query(`
+    INSERT INTO site_settings (setting_key, boolean_value)
+    VALUES ('mappool_public', TRUE)
+    ON CONFLICT (setting_key) DO NOTHING;
+`);
+
 // Configure session middleware
 app.use(session({
     secret: process.env.SESSION_SECRET,
@@ -83,12 +96,40 @@ app.use(session({
     saveUninitialized: false
 }));
 
+async function isAdminUser(req) {
+    if (!req.session.user) return false;
+    const result = await db.query(
+        'SELECT role FROM users WHERE user_id = $1',
+        [req.session.user.id]
+    );
+    return result.rows[0]?.role === 'admin';
+}
+
+async function isMappoolPublic() {
+    const result = await db.query(
+        'SELECT boolean_value FROM site_settings WHERE setting_key = $1',
+        ['mappool_public']
+    );
+    return result.rows[0]?.boolean_value ?? true;
+}
+
+app.get('/mappool.html', async (req, res) => {
+    if (!(await isMappoolPublic()) && !(await isAdminUser(req))) {
+        return res.status(403).send('The mappool is not publicly available yet.');
+    }
+    res.sendFile(path.join(__dirname, '../client/mappool.html'));
+});
+
 // Serve static files from the client directory 
 app.use(express.static(path.join(__dirname, '../client')));
 
 // Lightweight endpoint for Render health checks and uptime monitors.
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
+});
+
+app.get('/api/mappool-access', async (req, res) => {
+    res.json({ publicAccessEnabled: await isMappoolPublic() });
 });
 
 // Route to initiate OAuth2 login with osu!
@@ -337,6 +378,10 @@ async function insertInBatches(client, table, columns, rows, batchSize = 500) {
 
 app.get('/api/mappool', async (req, res) => {
     try {
+        if (!(await isMappoolPublic()) && !(await isAdminUser(req))) {
+            return res.status(403).json({ error: 'The mappool is not publicly available yet.' });
+        }
+
         const sections = await db.query(`
             SELECT sheet_name
             FROM mappool_sections
@@ -387,6 +432,7 @@ app.get('/admin/mappool', requireAdmin, async (req, res) => {
         ORDER BY display_order, sheet_name
     `);
     res.json({
+        publicAccessEnabled: await isMappoolPublic(),
         spreadsheetConfigured: Boolean(
             process.env.GOOGLE_APPS_SCRIPT_URL &&
             process.env.GOOGLE_APPS_SCRIPT_TOKEN
@@ -397,11 +443,18 @@ app.get('/admin/mappool', requireAdmin, async (req, res) => {
 
 app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res) => {
     const sections = Array.isArray(req.body.sections) ? req.body.sections : [];
+    const publicAccessEnabled = Boolean(req.body.publicAccessEnabled);
     const names = [...new Set(sections
         .map(section => String(section.name || '').trim())
         .filter(Boolean))];
 
     try {
+        await db.query(
+            `INSERT INTO site_settings (setting_key, boolean_value)
+             VALUES ($1, $2)
+             ON CONFLICT (setting_key) DO UPDATE SET boolean_value = EXCLUDED.boolean_value`,
+            ['mappool_public', publicAccessEnabled]
+        );
         await db.query('DELETE FROM mappool_sections');
         for (const [displayOrder, sheetName] of names.entries()) {
             await db.query(

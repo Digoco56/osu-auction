@@ -1,6 +1,7 @@
 const addTabsButton = document.getElementById('add-mappool-tabs-button');
 const updateVisibilityButton = document.getElementById('update-mappool-visibility-button');
 const refreshDataButton = document.getElementById('refresh-mappool-data-button');
+const publicAccessInput = document.getElementById('mappool-public-access');
 const sheetInput = document.getElementById('mappool-sheets');
 const sectionsContainer = document.getElementById('mappool-sections');
 const mappoolStatusMessage = document.getElementById('mappool-config-status');
@@ -11,6 +12,7 @@ async function loadConfiguration() {
   const response = await fetch('/admin/mappool');
   if (!response.ok) return;
   const configuration = await response.json();
+  publicAccessInput.checked = configuration.publicAccessEnabled;
   mappoolStatusMessage.textContent = configuration.spreadsheetConfigured
     ? 'Google Sheets is configured.'
     : 'Configure the Apps Script URL and token on the server.';
@@ -50,7 +52,10 @@ updateVisibilityButton.addEventListener('click', async () => {
     const response = await fetch('/admin/mappool/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sections })
+      body: JSON.stringify({
+        sections,
+        publicAccessEnabled: publicAccessInput.checked
+      })
     });
     if (!response.ok) {
       const error = await response.json().catch(() => null);
