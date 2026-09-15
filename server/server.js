@@ -8,6 +8,7 @@ const db = require('./db');
 const app = express();
 const mappoolCache = new Map();
 const MAPPOOL_CACHE_TTL_MS = 60 * 1000;
+const GOOGLE_SHEET_ATTEMPTS = 3;
 
 // Crear las tablas si no existen (PostgreSQL)
 db.query(`
@@ -209,12 +210,31 @@ async function readGoogleSheet(sheetName) {
         return cached.rows;
     }
 
-    const response = await axios.get(process.env.GOOGLE_APPS_SCRIPT_URL, {
-        params: {
-            token: process.env.GOOGLE_APPS_SCRIPT_TOKEN,
-            sheet: sheetName
+    let response;
+    let lastError;
+    for (let attempt = 1; attempt <= GOOGLE_SHEET_ATTEMPTS; attempt++) {
+        try {
+            response = await axios.get(process.env.GOOGLE_APPS_SCRIPT_URL, {
+                params: {
+                    token: process.env.GOOGLE_APPS_SCRIPT_TOKEN,
+                    sheet: sheetName
+                },
+                timeout: 15000
+            });
+            break;
+        } catch (error) {
+            lastError = error;
+            console.warn(`Google Sheets request failed for ${sheetName} (attempt ${attempt}/${GOOGLE_SHEET_ATTEMPTS}):`, {
+                status: error.response?.status,
+                message: error.message
+            });
+            if (attempt < GOOGLE_SHEET_ATTEMPTS) {
+                await new Promise(resolve => setTimeout(resolve, attempt * 500));
+            }
         }
-    });
+    }
+
+    if (!response) throw lastError;
     const rows = response.data.rows || [];
 
     const headerIndex = rows.findIndex(row => {
