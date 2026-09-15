@@ -1,7 +1,7 @@
-const saveButton = document.getElementById('save-mappool-button');
+const mappoolSaveButton = document.getElementById('save-mappool-button');
 const sheetInput = document.getElementById('mappool-sheets');
 const sectionsContainer = document.getElementById('mappool-sections');
-const statusMessage = document.getElementById('mappool-config-status');
+const mappoolStatusMessage = document.getElementById('mappool-config-status');
 
 loadConfiguration();
 
@@ -9,14 +9,14 @@ async function loadConfiguration() {
   const response = await fetch('/admin/mappool');
   if (!response.ok) return;
   const configuration = await response.json();
-  statusMessage.textContent = configuration.spreadsheetConfigured
+  mappoolStatusMessage.textContent = configuration.spreadsheetConfigured
     ? 'Google Sheets is configured.'
     : 'Configure the Apps Script URL and token on the server.';
   sheetInput.value = configuration.sections.map(section => section.sheet_name).join('\n');
   renderSections(configuration.sections);
 }
 
-saveButton.addEventListener('click', async () => {
+mappoolSaveButton.addEventListener('click', async () => {
   const names = sheetInput.value.split('\n').map(name => name.trim()).filter(Boolean);
   const current = [...sectionsContainer.querySelectorAll('input[type="checkbox"]')];
   const sections = names.map(name => ({
@@ -28,7 +28,7 @@ saveButton.addEventListener('click', async () => {
     sheet_name: section.name,
     is_public: section.isPublic
   })));
-  statusMessage.textContent = 'Saving mappool tabs...';
+  mappoolStatusMessage.textContent = 'Saving mappool tabs...';
 
   try {
     const response = await fetch('/admin/mappool/config', {
@@ -36,10 +36,10 @@ saveButton.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sections })
     });
-    statusMessage.textContent = response.ok ? 'Mappool tabs saved.' : await response.text();
+    mappoolStatusMessage.textContent = response.ok ? 'Mappool tabs saved.' : await response.text();
   } catch (error) {
     console.error('Error saving mappool tabs:', error);
-    statusMessage.textContent = 'Could not save mappool tabs. The current list is still visible.';
+    mappoolStatusMessage.textContent = 'Could not save mappool tabs. The current list is still visible.';
   }
 });
 
