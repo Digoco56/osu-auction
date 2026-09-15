@@ -300,9 +300,11 @@ async function readGoogleSheet(sheetName) {
 
     await addBeatmapBanners(normalizedHeaders, normalizedRows);
 
+    const visibleData = removeMappoolColumns(normalizedHeaders, normalizedRows);
+
     const result = {
-        headers: normalizedHeaders,
-        rows: normalizedRows
+        headers: visibleData.headers,
+        rows: visibleData.rows
     };
 
     mappoolCache.set(sheetName, {
@@ -311,6 +313,20 @@ async function readGoogleSheet(sheetName) {
     });
 
     return result;
+}
+
+function removeMappoolColumns(headers, rows) {
+    const hiddenHeaders = new Set(['primary', 'secondary', 'map id']);
+    const visibleHeaders = headers.filter(header => (
+        !hiddenHeaders.has(String(header).trim().toLowerCase())
+    ));
+
+    return {
+        headers: visibleHeaders,
+        rows: rows.map(row => Object.fromEntries(
+            visibleHeaders.map(header => [header, row[header] ?? ''])
+        ))
+    };
 }
 
 async function getOsuApiToken() {
