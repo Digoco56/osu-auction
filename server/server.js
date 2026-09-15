@@ -266,31 +266,50 @@ async function readGoogleSheet(sheetName) {
 }
 
 async function saveMappoolInDatabase(sheetName, data) {
-    await db.query('DELETE FROM mappool_values WHERE sheet_name = $1', [sheetName]);
-    await db.query('DELETE FROM mappool_rows WHERE sheet_name = $1', [sheetName]);
-    await db.query('DELETE FROM mappool_columns WHERE sheet_name = $1', [sheetName]);
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM mappool_values WHERE sheet_name = $1', [sheetName]);
+        await client.query('DELETE FROM mappool_rows WHERE sheet_name = $1', [sheetName]);
+        await client.query('DELETE FROM mappool_columns WHERE sheet_name = $1', [sheetName]);
 
-    for (const [position, header] of data.headers.entries()) {
-        await db.query(
-            'INSERT INTO mappool_columns (sheet_name, position, header) VALUES ($1, $2, $3)',
-            [sheetName, position, header]
-        );
+        await insertInBatches(client, 'mappool_columns', ['sheet_name', 'position', 'header'],
+            data.headers.map((header, position) => [sheetName, position, header]));
+        await insertInBatches(client, 'mappool_rows', ['sheet_name', 'row_number'],
+            data.rows.map((row, index) => [sheetName, index + 4]));
+
+        const values = [];
+        data.rows.forEach((row, rowIndex) => {
+            data.headers.forEach((header, position) => {
+                values.push([sheetName, rowIndex + 4, position, String(row[header] ?? '')]);
+            });
+        });
+        await insertInBatches(client, 'mappool_values',
+            ['sheet_name', 'row_number', 'position', 'value'], values);
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
     }
+}
 
-    for (const [rowIndex, row] of data.rows.entries()) {
-        const rowNumber = rowIndex + 4;
-        await db.query(
-            'INSERT INTO mappool_rows (sheet_name, row_number) VALUES ($1, $2)',
-            [sheetName, rowNumber]
+async function insertInBatches(client, table, columns, rows, batchSize = 500) {
+    for (let offset = 0; offset < rows.length; offset += batchSize) {
+        const batch = rows.slice(offset, offset + batchSize);
+        const values = [];
+        const placeholders = batch.map((row, rowIndex) => {
+            const rowPlaceholders = row.map((_, columnIndex) => {
+                values.push(row[columnIndex]);
+                return `$${values.length}`;
+            });
+            return `(${rowPlaceholders.join(', ')})`;
+        });
+        await client.query(
+            `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${placeholders.join(', ')}`,
+            values
         );
-
-        for (const [position, header] of data.headers.entries()) {
-            await db.query(
-                `INSERT INTO mappool_values (sheet_name, row_number, position, value)
-                 VALUES ($1, $2, $3, $4)`,
-                [sheetName, rowNumber, position, String(row[header] ?? '')]
-            );
-        }
     }
 }
 
@@ -361,30 +380,6 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
         .filter(Boolean))];
 
     try {
-        const publicSections = names.filter(sheetName => (
-            sections.find(section => section.name === sheetName)?.isPublic
-        ));
-        const downloaded = [];
-        for (const sheetName of publicSections) {
-            try {
-                downloaded.push({
-                    sheetName,
-                    data: await readGoogleSheet(sheetName)
-                });
-            } catch (error) {
-                console.error('Mappool sheet load failed:', {
-                    sheetName,
-                    status: error.response?.status,
-                    response: error.response?.data,
-                    message: error.message
-                });
-                downloaded.push({
-                    sheetName,
-                    error: `Google Sheets tab "${sheetName}" could not be loaded.`
-                });
-            }
-        }
-
         await db.query('DELETE FROM mappool_sections');
         for (const [displayOrder, sheetName] of names.entries()) {
             await db.query(
@@ -393,20 +388,40 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
             );
         }
 
-        for (const section of downloaded.filter(item => item.data)) {
-            await saveMappoolInDatabase(section.sheetName, section.data);
-        }
-
-        const warnings = downloaded
-            .filter(section => section.error)
-            .map(section => section.error);
-        res.json({ updated: true, warnings });
+        res.json({ updated: true });
     } catch (error) {
         console.error('Mappool configuration error:', error.message);
         res.status(400).json({
             error: `Could not save mappool configuration: ${error.message}`
         });
     }
+});
+
+app.post('/admin/mappool/refresh', requireAdmin, async (req, res) => {
+    const result = await db.query(`
+        SELECT sheet_name
+        FROM mappool_sections
+        WHERE is_public = TRUE
+        ORDER BY display_order, sheet_name
+    `);
+    const warnings = [];
+
+    for (const { sheet_name: sheetName } of result.rows) {
+        try {
+            const data = await readGoogleSheet(sheetName);
+            await saveMappoolInDatabase(sheetName, data);
+        } catch (error) {
+            console.error('Mappool sheet refresh failed:', {
+                sheetName,
+                status: error.response?.status,
+                response: error.response?.data,
+                message: error.message
+            });
+            warnings.push(`Google Sheets tab "${sheetName}" could not be refreshed.`);
+        }
+    }
+
+    res.json({ refreshed: true, warnings });
 });
 
 // Admin route to see users registered

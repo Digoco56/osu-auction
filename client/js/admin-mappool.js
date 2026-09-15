@@ -1,5 +1,6 @@
 const addTabsButton = document.getElementById('add-mappool-tabs-button');
 const updateVisibilityButton = document.getElementById('update-mappool-visibility-button');
+const refreshDataButton = document.getElementById('refresh-mappool-data-button');
 const sheetInput = document.getElementById('mappool-sheets');
 const sectionsContainer = document.getElementById('mappool-sections');
 const mappoolStatusMessage = document.getElementById('mappool-config-status');
@@ -55,18 +56,40 @@ updateVisibilityButton.addEventListener('click', async () => {
       const error = await response.json().catch(() => null);
       throw new Error(error?.error || 'Mappool visibility could not be updated.');
     }
-    const result = await response.json();
-    if (result.warnings?.length) {
-      setStatus(`Visibility updated with warning: ${result.warnings.join(' ')}`, 'warning');
-    } else {
-      setStatus('Mappool visibility updated!', 'success');
-    }
+    await response.json();
+    setStatus('Mappool visibility updated!', 'success');
   } catch (error) {
     console.error('Error updating mappool visibility:', error);
     setStatus(error.message, 'error');
   } finally {
     updateVisibilityButton.disabled = false;
     updateVisibilityButton.removeAttribute('aria-busy');
+  }
+});
+
+refreshDataButton.addEventListener('click', async () => {
+  refreshDataButton.disabled = true;
+  refreshDataButton.setAttribute('aria-busy', 'true');
+  setStatus('Refreshing public mappool data', 'updating');
+
+  try {
+    const response = await fetch('/admin/mappool/refresh', { method: 'POST' });
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new Error(error?.error || 'Mappool data could not be refreshed.');
+    }
+    const result = await response.json();
+    if (result.warnings?.length) {
+      setStatus(`Data refreshed with warning: ${result.warnings.join(' ')}`, 'warning');
+    } else {
+      setStatus('Public mappool data refreshed!', 'success');
+    }
+  } catch (error) {
+    console.error('Error refreshing mappool data:', error);
+    setStatus(error.message, 'error');
+  } finally {
+    refreshDataButton.disabled = false;
+    refreshDataButton.removeAttribute('aria-busy');
   }
 });
 
