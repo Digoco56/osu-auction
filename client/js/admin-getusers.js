@@ -61,7 +61,7 @@ function renderUsers() {
 
   table.replaceChildren();
   filteredUsers.forEach(user => table.appendChild(createUserRow(user)));
-  filterResult.textContent = `${filteredUsers.length} de ${users.length} usuarios`;
+  filterResult.textContent = `${filteredUsers.length} of ${users.length} users`;
   emptyState.classList.toggle('is-hidden', filteredUsers.length > 0);
 }
 
