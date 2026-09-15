@@ -6,16 +6,14 @@ fetch('/api/user')
     return response.json();
   })
   .then(user => {
-    if (!user) return;
+    if (user) {
+      window.location.replace('/dashboard.html');
+      return;
+    }
 
-    authAction.replaceChildren();
-
-    const dashboardLink = document.createElement('a');
-    dashboardLink.className = 'button';
-    dashboardLink.href = '/dashboard.html';
-    dashboardLink.textContent = 'Go to dashboard';
-    authAction.appendChild(dashboardLink);
+    authAction.hidden = false;
   })
   .catch(error => {
     console.error('Error checking session:', error);
+    authAction.hidden = false;
   });
