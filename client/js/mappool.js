@@ -50,7 +50,16 @@ function createSection(section) {
     }
     columns.forEach(column => {
       const cell = document.createElement('td');
-      cell.textContent = row[column] || '';
+      if (column.trim().toLowerCase() === 'banner' && row[column]) {
+        const image = document.createElement('img');
+        image.className = 'mappool-banner';
+        image.src = row[column];
+        image.alt = 'Beatmap banner';
+        image.loading = 'lazy';
+        cell.appendChild(image);
+      } else {
+        cell.textContent = row[column] || '';
+      }
       tableRow.appendChild(cell);
     });
     table.appendChild(tableRow);

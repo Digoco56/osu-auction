@@ -70,6 +70,15 @@
   border-radius: 0 6px 6px 0;
 }
 
+.mappool-banner {
+  display: block;
+  width: 160px;
+  height: 46px;
+  object-fit: cover;
+  margin: 0 auto;
+  border-radius: 5px;
+}
+
 @media (max-width: 700px) {
   body {
     padding: 1rem;

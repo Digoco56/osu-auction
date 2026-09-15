@@ -7,11 +7,14 @@ const db = require('./db');
 
 const app = express();
 const mappoolCache = new Map();
+const osuBeatmapCache = new Map();
 const MAPPOOL_CACHE_TTL_MS = 60 * 1000;
 const GOOGLE_SHEET_ATTEMPTS = 3;
 const AA_COLUMN_INDEX = 26;
 const AB_COLUMN_INDEX = 27;
 const AC_COLUMN_INDEX = 28;
+let osuApiToken = null;
+let osuApiTokenExpiresAt = 0;
 
 // Crear las tablas si no existen (PostgreSQL)
 db.query(`
@@ -295,6 +298,8 @@ async function readGoogleSheet(sheetName) {
             normalizedHeaders.map((header, index) => [header, row[index] ?? ''])
         ));
 
+    await addBeatmapBanners(normalizedHeaders, normalizedRows);
+
     const result = {
         headers: normalizedHeaders,
         rows: normalizedRows
@@ -306,6 +311,70 @@ async function readGoogleSheet(sheetName) {
     });
 
     return result;
+}
+
+async function getOsuApiToken() {
+    if (osuApiToken && Date.now() < osuApiTokenExpiresAt) return osuApiToken;
+
+    const response = await axios.post('https://osu.ppy.sh/oauth/token', {
+        client_id: process.env.OSU_CLIENT_ID,
+        client_secret: process.env.OSU_CLIENT_SECRET,
+        grant_type: 'client_credentials',
+        scope: 'public'
+    }, { timeout: 15000 });
+
+    osuApiToken = response.data.access_token;
+    osuApiTokenExpiresAt = Date.now() + Math.max(response.data.expires_in - 60, 60) * 1000;
+    return osuApiToken;
+}
+
+function findHeader(headers, expected) {
+    return headers.find(header => String(header).trim().toLowerCase() === expected);
+}
+
+function extractBeatmapId(value) {
+    const text = String(value ?? '').trim();
+    const urlMatch = text.match(/(?:beatmaps\/|#osu\/)(\d+)/i);
+    if (urlMatch) return urlMatch[1];
+    const idMatch = text.match(/^\d+$/);
+    return idMatch ? idMatch[0] : null;
+}
+
+async function getBeatmapBanner(beatmapId) {
+    if (osuBeatmapCache.has(beatmapId)) return osuBeatmapCache.get(beatmapId);
+
+    const token = await getOsuApiToken();
+    const response = await axios.get(`https://osu.ppy.sh/api/v2/beatmaps/${beatmapId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000
+    });
+    const banner = response.data.beatmapset?.covers?.cover
+        || response.data.beatmapset?.covers?.['cover@2x']
+        || '';
+    osuBeatmapCache.set(beatmapId, banner);
+    return banner;
+}
+
+async function addBeatmapBanners(headers, rows) {
+    const bannerHeader = findHeader(headers, 'banner');
+    const mapHeader = headers.find(header => (
+        /map\s*(id|id\/url)|map\s*\+\s*url/i.test(String(header))
+    ));
+    if (!bannerHeader || !mapHeader) return;
+
+    try {
+        await Promise.all(rows.map(async row => {
+            const beatmapId = extractBeatmapId(row[mapHeader]);
+            if (!beatmapId) return;
+            try {
+                row[bannerHeader] = await getBeatmapBanner(beatmapId);
+            } catch (error) {
+                console.warn(`Could not load osu! banner for beatmap ${beatmapId}:`, error.message);
+            }
+        }));
+    } catch (error) {
+        console.warn('Could not enrich mappool banners:', error.message);
+    }
 }
 
 function combineMappoolColumns(rows, headerIndex) {
