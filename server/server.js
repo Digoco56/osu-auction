@@ -309,18 +309,29 @@ async function readGoogleSheet(sheetName) {
 }
 
 function combineMappoolColumns(rows, headerIndex) {
-    if (!rows.some(row => row.length > AC_COLUMN_INDEX)) return rows;
+    const header = rows[headerIndex] || [];
+    const normalizedHeader = header.map(value => String(value).trim().toLowerCase());
+    const namedAaIndex = normalizedHeader.indexOf('aa');
+    const namedAbIndex = normalizedHeader.indexOf('ab');
+    const namedAcIndex = normalizedHeader.indexOf('ac');
+    const hasPhysicalColumns = rows.some(row => row.length > AC_COLUMN_INDEX);
+    const aaIndex = namedAaIndex >= 0 ? namedAaIndex : (hasPhysicalColumns ? AA_COLUMN_INDEX : -1);
+    const abIndex = namedAbIndex >= 0 ? namedAbIndex : (hasPhysicalColumns ? AB_COLUMN_INDEX : -1);
+    const acIndex = namedAcIndex >= 0 ? namedAcIndex : (hasPhysicalColumns ? AC_COLUMN_INDEX : -1);
+
+    if (aaIndex < 0 || abIndex < 0 || acIndex < 0) return rows;
 
     return rows.map((row, rowIndex) => {
         const values = [...row];
-        const aaValue = values[AA_COLUMN_INDEX] ?? '';
-        const abValue = values[AB_COLUMN_INDEX] ?? '';
+        const aaValue = values[aaIndex] ?? '';
+        const abValue = values[abIndex] ?? '';
 
         if (rowIndex !== headerIndex) {
-            values[AA_COLUMN_INDEX] = `${aaValue}${abValue}`;
+            values[aaIndex] = `${aaValue}${abValue}`;
         }
 
-        values.splice(AB_COLUMN_INDEX, 2);
+        [abIndex, acIndex].sort((left, right) => right - left)
+            .forEach(index => values.splice(index, 1));
         return values;
     });
 }
