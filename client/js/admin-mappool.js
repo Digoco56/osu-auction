@@ -5,9 +5,7 @@ const sectionsContainer = document.getElementById('mappool-sections');
 const statusMessage = document.getElementById('mappool-config-status');
 let sections = [];
 let configurationLoaded = false;
-
-addSheetButton.disabled = true;
-statusMessage.textContent = 'Loading mappool configuration...';
+const pendingSections = [];
 
 loadConfiguration();
 
@@ -23,8 +21,12 @@ async function loadConfiguration() {
       name: section.sheet_name,
       isPublic: section.is_public
     }));
+    pendingSections.forEach(section => {
+      if (!sections.some(existing => existing.name.toLowerCase() === section.name.toLowerCase())) {
+        sections.push(section);
+      }
+    });
     configurationLoaded = true;
-    addSheetButton.disabled = false;
     renderSections();
   } catch (error) {
     console.error('Error loading mappool configuration:', error);
@@ -44,11 +46,6 @@ sheetInput.addEventListener('keydown', event => {
 });
 
 function addSheet() {
-  if (!configurationLoaded) {
-    statusMessage.textContent = 'Mappool configuration is still loading. Try again in a moment.';
-    return;
-  }
-
   const name = sheetInput.value.trim();
   if (!name) {
     statusMessage.textContent = 'Enter a Google Sheets tab name first.';
@@ -59,7 +56,9 @@ function addSheet() {
     statusMessage.textContent = 'That tab has already been added.';
     return;
   }
-  sections.push({ name, isPublic: false });
+  const newSection = { name, isPublic: false };
+  sections.push(newSection);
+  if (!configurationLoaded) pendingSections.push(newSection);
   sheetInput.value = '';
   statusMessage.textContent = 'Tab added. Save visibility to apply the change.';
   renderSections();
