@@ -100,9 +100,8 @@ function appendMetricContent(cell, column, value) {
   const text = String(value ?? '');
   const metric = column.trim().toLowerCase();
   const icons = {
-    bpm: [String.fromCharCode(9833), 'Metronome'],
-    drain: [String.fromCharCode(9703), 'Analog clock'],
-    cs: [String.fromCharCode(9675), 'Circle']
+    bpm: ['bi-metronome', 'Metronome'],
+    drain: ['bi-clock', 'Analog clock']
   };
 
   if (!text || !icons[metric]) {
@@ -115,8 +114,7 @@ function appendMetricContent(cell, column, value) {
   const valueText = document.createElement('span');
   valueText.textContent = text;
   const icon = document.createElement('span');
-  icon.className = `mappool-metric-icon mappool-${metric}-icon`;
-  icon.textContent = icons[metric][0];
+  icon.className = `mappool-metric-icon mappool-${metric}-icon bi ${icons[metric][0]}`;
   icon.setAttribute('aria-label', icons[metric][1]);
   content.append(valueText, icon);
   cell.appendChild(content);
