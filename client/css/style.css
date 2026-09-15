@@ -35,8 +35,32 @@ a.button:hover {
   background-color: #417aaf;
 }
 
+.mappool-nm-row td {
+  color: #6d9eeb;
+}
+
+.mappool-hd-row td {
+  color: #ffd966;
+}
+
+.mappool-hr-row td {
+  color: #e06666;
+}
+
+.mappool-dt-row td {
+  color: #8e7cc3;
+}
+
 .mappool-hp-row td {
   color: #93c47d;
+}
+
+.mappool-fm-row td {
+  color: #76a5af;
+}
+
+.mappool-tb-row td {
+  color: #c27ba0;
 }
 
 /* User info container */

@@ -42,8 +42,10 @@ function createSection(section) {
   section.rows.forEach(row => {
     const tableRow = document.createElement('tr');
     const firstColumnValue = String(row[columns[0]] ?? '').trim().toUpperCase();
-    if (firstColumnValue.startsWith('HP')) {
-      tableRow.classList.add('mappool-hp-row');
+    const modColors = ['NM', 'HD', 'HR', 'DT', 'HP', 'FM', 'TB'];
+    const mod = modColors.find(prefix => firstColumnValue.startsWith(prefix));
+    if (mod) {
+      tableRow.classList.add(`mappool-${mod.toLowerCase()}-row`);
     }
     columns.forEach(column => {
       const cell = document.createElement('td');
