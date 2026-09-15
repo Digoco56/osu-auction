@@ -1,8 +1,8 @@
 #mappool-sections {
   width: min(100%, 1800px);
-  margin: 2rem auto 0;
+  margin: 1.5rem auto 0;
   display: grid;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .mappool-section {
@@ -12,13 +12,13 @@
   background: #142333;
   border: 1px solid rgba(102, 192, 244, 0.24);
   border-radius: 12px;
-  padding: 1.25rem 1.5rem 1.5rem;
+  padding: 1rem 1.1rem 1.15rem;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
   text-align: center;
 }
 
 .mappool-section h2 {
-  margin: 0 0 1.2rem;
+  margin: 0 0 0.8rem;
   color: #66c0f4;
   font-size: 1.35rem;
 }
@@ -27,13 +27,13 @@
   width: 100%;
   min-width: 0;
   border-collapse: separate;
-  border-spacing: 0 0.3rem;
+  border-spacing: 0 0.15rem;
   table-layout: auto;
 }
 
 .mappool-section th,
 .mappool-section td {
-  padding: 0.65rem 0.85rem;
+  padding: 0.5rem 0.65rem;
   text-align: center;
   white-space: normal;
 }
@@ -47,7 +47,7 @@
 }
 
 .mappool-section tbody tr {
-  height: 58px;
+  height: 48px;
   transition: background-color 0.2s ease;
 }
 
@@ -79,8 +79,8 @@
 
 .mappool-banner {
   display: block;
-  width: 180px;
-  height: 58px;
+  width: 165px;
+  height: 48px;
   object-fit: cover;
   margin: 0 auto;
   border-radius: 5px;
@@ -100,11 +100,11 @@
   }
 
   .mappool-section tbody tr {
-    height: 52px;
+    height: 44px;
   }
 
   .mappool-banner {
     width: 150px;
-    height: 52px;
+    height: 44px;
   }
 }
