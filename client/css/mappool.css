@@ -24,7 +24,7 @@
 }
 
 .mappool-section table {
-  width: max-content;
+  width: min(92%, 1500px);
   min-width: 0;
   margin: 0 auto;
   border-collapse: separate;
@@ -101,6 +101,7 @@
   }
 
   .mappool-section table {
+    width: max-content;
     margin: 0;
   }
 
