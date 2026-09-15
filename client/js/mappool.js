@@ -18,6 +18,7 @@ fetch('/api/mappool')
 
 function createSection(section) {
   const wrapper = document.createElement('section');
+  wrapper.className = 'mappool-section';
   const heading = document.createElement('h2');
   heading.textContent = section.name;
   wrapper.appendChild(heading);
