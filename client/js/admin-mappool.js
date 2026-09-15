@@ -1,10 +1,42 @@
 const form = document.getElementById('mappool-config-form');
+const newSheetInput = document.getElementById('mappool-sheet-name');
+const addSheetButton = document.getElementById('add-sheet-button');
 const sheetInput = document.getElementById('mappool-sheets');
 const sectionsContainer = document.getElementById('mappool-sections');
 const statusMessage = document.getElementById('mappool-config-status');
 let sections = [];
 
 loadConfiguration();
+
+addSheetButton.addEventListener('click', addSheet);
+newSheetInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addSheet();
+  }
+});
+
+function addSheet() {
+  const name = newSheetInput.value.trim();
+  if (!name) {
+    statusMessage.textContent = 'Enter a Google Sheets tab name first.';
+    newSheetInput.focus();
+    return;
+  }
+
+  const names = sheetInput.value.split('\n').map(value => value.trim()).filter(Boolean);
+  if (names.some(value => value.toLowerCase() === name.toLowerCase())) {
+    statusMessage.textContent = 'That tab has already been added.';
+    return;
+  }
+
+  names.push(name);
+  sheetInput.value = names.join('\n');
+  newSheetInput.value = '';
+  sections.push({ name, isPublic: false });
+  renderSections(sections);
+  statusMessage.textContent = 'Tab added. Select Public and click Save tabs.';
+}
 
 async function loadConfiguration() {
   try {
@@ -14,10 +46,14 @@ async function loadConfiguration() {
     statusMessage.textContent = configuration.spreadsheetConfigured
       ? 'Google Sheets is configured.'
       : 'Configure the Apps Script URL and token on the server.';
-    sections = configuration.sections.map(section => ({
+    const loadedSections = configuration.sections.map(section => ({
       name: section.sheet_name,
       isPublic: section.is_public
     }));
+    const addedWhileLoading = sections.filter(section => (
+      !loadedSections.some(loaded => loaded.name.toLowerCase() === section.name.toLowerCase())
+    ));
+    sections = [...loadedSections, ...addedWhileLoading];
     sheetInput.value = sections.map(section => section.name).join('\n');
     renderSections(sections);
   } catch (error) {

@@ -87,13 +87,23 @@ main {
 }
 
 input,
-select {
+select,
+textarea {
     background: #172535;
     color: #fff;
     border: 1px solid var(--admin-border);
     border-radius: 4px;
     padding: 0.55rem 0.65rem;
     font: inherit;
+}
+
+#mappool-sheets {
+    display: block;
+    width: 100%;
+    max-width: 520px;
+    box-sizing: border-box;
+    margin: 0.5rem 0 1rem;
+    resize: vertical;
 }
 
 #user-filter-value {
