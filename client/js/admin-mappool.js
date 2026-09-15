@@ -6,6 +6,9 @@ const statusMessage = document.getElementById('mappool-config-status');
 let sections = [];
 let configurationLoaded = false;
 
+addSheetButton.disabled = true;
+statusMessage.textContent = 'Loading mappool configuration...';
+
 loadConfiguration();
 
 async function loadConfiguration() {
@@ -21,10 +24,11 @@ async function loadConfiguration() {
       isPublic: section.is_public
     }));
     configurationLoaded = true;
+    addSheetButton.disabled = false;
     renderSections();
   } catch (error) {
     console.error('Error loading mappool configuration:', error);
-    statusMessage.textContent = 'Mappool configuration could not be loaded.';
+    statusMessage.textContent = 'Mappool configuration could not be loaded. Refresh and try again.';
   }
 }
 
@@ -73,11 +77,14 @@ form.addEventListener('submit', async event => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sections: payload })
     });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new Error(error?.error || 'The server rejected the configuration.');
+    }
     statusMessage.textContent = 'Visibility saved successfully.';
   } catch (error) {
     console.error('Error saving mappool configuration:', error);
-    statusMessage.textContent = 'Visibility could not be saved.';
+    statusMessage.textContent = error.message;
   }
 });
 

@@ -363,7 +363,10 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
 
         res.sendStatus(204);
     } catch (error) {
-        throw error;
+        console.error('Mappool configuration error:', error.message);
+        res.status(400).json({
+            error: `Could not save mappool configuration: ${error.message}`
+        });
     }
 });
 
