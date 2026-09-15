@@ -1,4 +1,5 @@
-const mappoolSaveButton = document.getElementById('save-mappool-button');
+const addTabsButton = document.getElementById('add-mappool-tabs-button');
+const updateVisibilityButton = document.getElementById('update-mappool-visibility-button');
 const sheetInput = document.getElementById('mappool-sheets');
 const sectionsContainer = document.getElementById('mappool-sections');
 const mappoolStatusMessage = document.getElementById('mappool-config-status');
@@ -16,8 +17,20 @@ async function loadConfiguration() {
   renderSections(configuration.sections);
 }
 
-mappoolSaveButton.addEventListener('click', async () => {
-  const names = sheetInput.value.split('\n').map(name => name.trim()).filter(Boolean);
+addTabsButton.addEventListener('click', () => {
+  const names = getNames();
+  const current = getCurrentVisibility();
+  const sections = names.map(name => ({
+    name,
+    isPublic: current[name] || false
+  }));
+
+  renderSections(sections);
+  mappoolStatusMessage.textContent = 'Tabs added. Select which tabs are public, then update visibility.';
+});
+
+updateVisibilityButton.addEventListener('click', async () => {
+  const names = getNames();
   const current = [...sectionsContainer.querySelectorAll('input[type="checkbox"]')];
   const sections = names.map(name => ({
     name,
@@ -28,7 +41,7 @@ mappoolSaveButton.addEventListener('click', async () => {
     sheet_name: section.name,
     is_public: section.isPublic
   })));
-  mappoolStatusMessage.textContent = 'Saving mappool tabs...';
+  mappoolStatusMessage.textContent = 'Updating mappool visibility...';
 
   try {
     const response = await fetch('/admin/mappool/config', {
@@ -36,12 +49,21 @@ mappoolSaveButton.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sections })
     });
-    mappoolStatusMessage.textContent = response.ok ? 'Mappool tabs saved.' : await response.text();
+    mappoolStatusMessage.textContent = response.ok ? 'Mappool visibility updated.' : await response.text();
   } catch (error) {
-    console.error('Error saving mappool tabs:', error);
-    mappoolStatusMessage.textContent = 'Could not save mappool tabs. The current list is still visible.';
+    console.error('Error updating mappool visibility:', error);
+    mappoolStatusMessage.textContent = 'Could not update mappool visibility. The current list is still visible.';
   }
 });
+
+function getNames() {
+  return sheetInput.value.split('\n').map(name => name.trim()).filter(Boolean);
+}
+
+function getCurrentVisibility() {
+  return Object.fromEntries([...sectionsContainer.querySelectorAll('input[type="checkbox"]')]
+    .map(input => [input.dataset.sheetName, input.checked]));
+}
 
 function renderSections(sections) {
   sectionsContainer.innerHTML = '';

@@ -75,7 +75,10 @@
             <div id="mappool-config-form">
                 <label for="mappool-sheets">Google Sheets tabs (one name per line)</label>
                 <textarea id="mappool-sheets" rows="6" placeholder="qualifiers&#10;semifinals&#10;finals"></textarea>
-                <button class="button" id="save-mappool-button" type="button">Save tabs</button>
+                <div class="mappool-actions">
+                    <button class="button" id="add-mappool-tabs-button" type="button">Add tabs</button>
+                    <button class="button" id="update-mappool-visibility-button" type="button">Update visibility</button>
+                </div>
                 <div class="sheet-list" id="mappool-sections"></div>
             </div>
         </section>
