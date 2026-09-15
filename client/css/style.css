@@ -35,6 +35,10 @@ a.button:hover {
   background-color: #417aaf;
 }
 
+.mappool-hp-row td {
+  color: #93c47d;
+}
+
 /* User info container */
 #user-info {
   margin-top: 2rem;

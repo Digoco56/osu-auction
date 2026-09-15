@@ -41,6 +41,10 @@ function createSection(section) {
 
   section.rows.forEach(row => {
     const tableRow = document.createElement('tr');
+    const firstColumnValue = String(row[columns[0]] ?? '').trim().toUpperCase();
+    if (firstColumnValue.startsWith('HP')) {
+      tableRow.classList.add('mappool-hp-row');
+    }
     columns.forEach(column => {
       const cell = document.createElement('td');
       cell.textContent = row[column] || '';
