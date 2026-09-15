@@ -27,6 +27,10 @@ a.button {
   margin: 10px;
 }
 
+a.button[hidden] {
+  display: none;
+}
+
 a.button:hover {
   background-color: #417aaf;
 }
