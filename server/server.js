@@ -9,6 +9,9 @@ const app = express();
 const mappoolCache = new Map();
 const MAPPOOL_CACHE_TTL_MS = 60 * 1000;
 const GOOGLE_SHEET_ATTEMPTS = 3;
+const AA_COLUMN_INDEX = 26;
+const AB_COLUMN_INDEX = 27;
+const AC_COLUMN_INDEX = 28;
 
 // Crear las tablas si no existen (PostgreSQL)
 db.query(`
@@ -241,12 +244,14 @@ async function readGoogleSheet(sheetName) {
         const values = row.map(value => String(value).trim().toLowerCase());
         return values.includes('pick') && values.includes('mod');
     });
-    const headers = rows[headerIndex >= 0 ? headerIndex : 0] || [];
+    const effectiveHeaderIndex = headerIndex >= 0 ? headerIndex : 0;
+    const transformedRows = combineMappoolColumns(rows, effectiveHeaderIndex);
+    const headers = transformedRows[effectiveHeaderIndex] || [];
     const normalizedHeaders = headers.map((header, index) => (
         String(header).trim() || `column_${index + 1}`
     ));
 
-    const normalizedRows = rows.slice(headerIndex >= 0 ? headerIndex + 1 : 1)
+    const normalizedRows = transformedRows.slice(effectiveHeaderIndex + 1)
         .filter(row => row.some(value => String(value ?? '').trim() !== ''))
         .map(row => Object.fromEntries(
             normalizedHeaders.map((header, index) => [header, row[index] ?? ''])
@@ -263,6 +268,23 @@ async function readGoogleSheet(sheetName) {
     });
 
     return result;
+}
+
+function combineMappoolColumns(rows, headerIndex) {
+    if (!rows.some(row => row.length > AC_COLUMN_INDEX)) return rows;
+
+    return rows.map((row, rowIndex) => {
+        const values = [...row];
+        const aaValue = values[AA_COLUMN_INDEX] ?? '';
+        const abValue = values[AB_COLUMN_INDEX] ?? '';
+
+        if (rowIndex !== headerIndex) {
+            values[AA_COLUMN_INDEX] = `${aaValue}${abValue}`;
+        }
+
+        values.splice(AB_COLUMN_INDEX, 2);
+        return values;
+    });
 }
 
 async function saveMappoolInDatabase(sheetName, data) {
