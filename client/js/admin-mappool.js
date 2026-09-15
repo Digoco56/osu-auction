@@ -55,7 +55,12 @@ updateVisibilityButton.addEventListener('click', async () => {
       const error = await response.json().catch(() => null);
       throw new Error(error?.error || 'Mappool visibility could not be updated.');
     }
-    setStatus('Mappool visibility updated!', 'success');
+    const result = await response.json();
+    if (result.warnings?.length) {
+      setStatus(`Visibility updated with warning: ${result.warnings.join(' ')}`, 'warning');
+    } else {
+      setStatus('Mappool visibility updated!', 'success');
+    }
   } catch (error) {
     console.error('Error updating mappool visibility:', error);
     setStatus(error.message, 'error');

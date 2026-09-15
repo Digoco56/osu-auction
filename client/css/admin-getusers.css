@@ -180,6 +180,16 @@ img {
     animation: status-dots 1.2s steps(4, end) infinite;
 }
 
+.status-message.updating {
+    color: #8ed8ff;
+    background: linear-gradient(90deg, rgba(102, 192, 244, 0.08), rgba(102, 192, 244, 0.28), rgba(102, 192, 244, 0.08));
+    background-size: 220% 100%;
+    border: 1px solid rgba(102, 192, 244, 0.45);
+    border-radius: 999px;
+    padding: 0.55rem 0.85rem;
+    animation: status-loading 1.7s ease-in-out infinite;
+}
+
 .status-message.success {
     color: #9be7b0;
     animation: status-success 0.55s ease-out;
@@ -195,6 +205,15 @@ img {
     animation: status-error 0.35s ease-out;
 }
 
+.status-message.warning {
+    color: #ffd58a;
+    background: rgba(255, 191, 71, 0.12);
+    border: 1px solid rgba(255, 191, 71, 0.4);
+    border-radius: 6px;
+    padding: 0.55rem 0.85rem;
+    animation: status-success 0.55s ease-out;
+}
+
 button:disabled {
     cursor: wait;
     opacity: 0.65;
@@ -205,6 +224,12 @@ button:disabled {
     25% { content: '.'; }
     50% { content: '..'; }
     75%, 100% { content: '...'; }
+}
+
+@keyframes status-loading {
+    0% { background-position: 100% 0; box-shadow: 0 0 0 rgba(102, 192, 244, 0); }
+    50% { background-position: 0 0; box-shadow: 0 0 18px rgba(102, 192, 244, 0.22); }
+    100% { background-position: -100% 0; box-shadow: 0 0 0 rgba(102, 192, 244, 0); }
 }
 
 @keyframes status-success {

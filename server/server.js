@@ -351,7 +351,10 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
                     data: await readGoogleSheet(sheetName)
                 };
             } catch (error) {
-                throw new Error(`Google Sheets tab "${sheetName}" could not be loaded. Check that the tab name matches exactly.`);
+                return {
+                    sheetName,
+                    error: `Google Sheets tab "${sheetName}" could not be loaded.`
+                };
             }
         }));
 
@@ -363,11 +366,14 @@ app.post('/admin/mappool/config', requireAdmin, express.json(), async (req, res)
             );
         }
 
-        for (const section of downloaded) {
+        for (const section of downloaded.filter(item => item.data)) {
             await saveMappoolInDatabase(section.sheetName, section.data);
         }
 
-        res.sendStatus(204);
+        const warnings = downloaded
+            .filter(section => section.error)
+            .map(section => section.error);
+        res.json({ updated: true, warnings });
     } catch (error) {
         console.error('Mappool configuration error:', error.message);
         res.status(400).json({
