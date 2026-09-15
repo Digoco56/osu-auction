@@ -1,4 +1,4 @@
-const form = document.getElementById('mappool-config-form');
+const saveButton = document.getElementById('save-mappool-button');
 const sheetInput = document.getElementById('mappool-sheets');
 const sectionsContainer = document.getElementById('mappool-sections');
 const statusMessage = document.getElementById('mappool-config-status');
@@ -16,8 +16,7 @@ async function loadConfiguration() {
   renderSections(configuration.sections);
 }
 
-form.addEventListener('submit', async event => {
-  event.preventDefault();
+saveButton.addEventListener('click', async () => {
   const names = sheetInput.value.split('\n').map(name => name.trim()).filter(Boolean);
   const current = [...sectionsContainer.querySelectorAll('input[type="checkbox"]')];
   const sections = names.map(name => ({
