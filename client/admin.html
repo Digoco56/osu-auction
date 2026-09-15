@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -10,29 +10,79 @@
 
 <body>
     <h1>Admin Panel</h1>
-    <section>
-        <h2>Mappool visibility</h2>
-        <p id="mappool-config-status"></p>
-        <form id="mappool-config-form">
-            <label for="mappool-sheets">Google Sheets tabs (one name per line)</label>
-            <textarea id="mappool-sheets" rows="6" placeholder="qualifiers&#10;semifinals&#10;finals"></textarea>
-            <button class="button" type="submit">Save tabs</button>
-        </form>
-        <div id="mappool-sections"></div>
-    </section>
-    <a class="button" href="/mappool.html">View mappool</a>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Username</th>
-                <th>Avatar</th>
-                <th>Role</th>
-                <th>Change Role</th>
-            </tr>
-        </thead>
-        <tbody id="user-table"></tbody>
-    </table>
+    <nav class="admin-nav" aria-label="Admin sections">
+        <button class="admin-nav-button is-active" type="button" data-panel="users-panel">Usuarios</button>
+        <button class="admin-nav-button" type="button" data-panel="visibility-panel">Visibilidad del mappool</button>
+    </nav>
+
+    <main>
+        <section class="admin-panel is-visible" id="users-panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>Usuarios</h2>
+                    <p class="panel-description">Busca por cualquier campo o filtra por rol.</p>
+                </div>
+                <a class="button secondary-button" href="/mappool.html">Ver mappool</a>
+            </div>
+
+            <div class="user-filters" aria-label="Filtros de usuarios">
+                <label for="user-filter-field">Buscar en</label>
+                <select id="user-filter-field">
+                    <option value="all">Todos los campos</option>
+                    <option value="user_id">ID</option>
+                    <option value="username">Usuario</option>
+                    <option value="role">Rol</option>
+                </select>
+                <label for="user-filter-value">Texto</label>
+                <input id="user-filter-value" type="search" placeholder="Escribe para filtrar...">
+                <label for="user-role-filter">Rol</label>
+                <select id="user-role-filter">
+                    <option value="all">Todos</option>
+                    <option value="player">Player</option>
+                    <option value="captain">Captain</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <span class="filter-result" id="user-filter-result"></span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuario</th>
+                            <th>Avatar</th>
+                            <th>Rol</th>
+                            <th>Cambiar rol</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-table"></tbody>
+                </table>
+            </div>
+            <p class="empty-state is-hidden" id="user-empty-state">No hay usuarios que coincidan con los filtros.</p>
+            <button class="button" id="save-roles-button" type="button">Guardar cambios</button>
+            <p class="status-message" id="user-status" role="status"></p>
+        </section>
+
+        <section class="admin-panel" id="visibility-panel" hidden>
+            <div class="panel-heading">
+                <div>
+                    <h2>Visibilidad del mappool</h2>
+                    <p class="panel-description">Añade pestañas de Google Sheets y decide cuáles puede ver el público.</p>
+                </div>
+            </div>
+            <p class="status-message" id="mappool-config-status" role="status"></p>
+            <form id="mappool-config-form">
+                <div class="add-sheet-row">
+                    <label for="mappool-sheet-name">Nueva pestaña</label>
+                    <input id="mappool-sheet-name" type="text" placeholder="Ej. qualifiers" autocomplete="off">
+                    <button class="button" type="button" id="add-sheet-button">Añadir pestaña</button>
+                </div>
+                <div class="sheet-list" id="mappool-sections"></div>
+                <button class="button" type="submit">Guardar visibilidad</button>
+            </form>
+        </section>
+    </main>
 
     <script src="js/admin-getusers.js"></script>
     <script src="js/admin-mappool.js"></script>

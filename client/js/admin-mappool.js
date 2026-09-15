@@ -1,50 +1,106 @@
 const form = document.getElementById('mappool-config-form');
-const sheetInput = document.getElementById('mappool-sheets');
+const sheetInput = document.getElementById('mappool-sheet-name');
+const addSheetButton = document.getElementById('add-sheet-button');
 const sectionsContainer = document.getElementById('mappool-sections');
 const statusMessage = document.getElementById('mappool-config-status');
+let sections = [];
 
 loadConfiguration();
 
 async function loadConfiguration() {
-  const response = await fetch('/admin/mappool');
-  if (!response.ok) return;
-  const configuration = await response.json();
-  statusMessage.textContent = configuration.spreadsheetConfigured
-    ? 'Google Sheets is configured.'
-    : 'Configure the Apps Script URL and token in the server environment first.';
-  sheetInput.value = configuration.sections.map(section => section.sheet_name).join('\n');
-  renderSections(configuration.sections);
+  try {
+    const response = await fetch('/admin/mappool');
+    if (!response.ok) throw new Error('Could not load mappool configuration');
+    const configuration = await response.json();
+    statusMessage.textContent = configuration.spreadsheetConfigured
+      ? 'Google Sheets está configurado.'
+      : 'Configura la URL y el token de Apps Script en el servidor.';
+    sections = configuration.sections.map(section => ({
+      name: section.sheet_name,
+      isPublic: section.is_public
+    }));
+    renderSections();
+  } catch (error) {
+    console.error('Error loading mappool configuration:', error);
+    statusMessage.textContent = 'No se pudo cargar la configuración del mappool.';
+  }
+}
+
+addSheetButton.addEventListener('click', addSheet);
+sheetInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addSheet();
+  }
+});
+
+function addSheet() {
+  const name = sheetInput.value.trim();
+  if (!name) return;
+  if (sections.some(section => section.name.toLowerCase() === name.toLowerCase())) {
+    statusMessage.textContent = 'Esa pestaña ya está añadida.';
+    return;
+  }
+  sections.push({ name, isPublic: false });
+  sheetInput.value = '';
+  statusMessage.textContent = '';
+  renderSections();
 }
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
-  const names = sheetInput.value.split('\n').map(name => name.trim()).filter(Boolean);
-  const current = [...sectionsContainer.querySelectorAll('input[type="checkbox"]')];
-  const sections = names.map(name => ({
-    name,
-    isPublic: current.find(input => input.dataset.sheetName === name)?.checked || false
+  const payload = sections.map(section => ({
+    name: section.name,
+    isPublic: section.isPublic
   }));
-  const response = await fetch('/admin/mappool/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sections })
-  });
-  statusMessage.textContent = response.ok ? 'Mappool tabs saved.' : await response.text();
-  if (response.ok) renderSections(sections.map(section => ({
-    sheet_name: section.name,
-    is_public: section.isPublic
-  })));
+  try {
+    const response = await fetch('/admin/mappool/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sections: payload })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    statusMessage.textContent = 'Visibilidad guardada correctamente.';
+  } catch (error) {
+    console.error('Error saving mappool configuration:', error);
+    statusMessage.textContent = 'No se pudo guardar la visibilidad.';
+  }
 });
 
-function renderSections(sections) {
+function renderSections() {
   sectionsContainer.innerHTML = '';
-  sections.forEach(section => {
+  if (!sections.length) {
+    const emptyMessage = document.createElement('p');
+    emptyMessage.className = 'empty-state';
+    emptyMessage.textContent = 'Todavía no hay pestañas añadidas.';
+    sectionsContainer.appendChild(emptyMessage);
+    return;
+  }
+
+  sections.forEach((section, index) => {
+    const row = document.createElement('div');
+    row.className = 'sheet-row';
     const label = document.createElement('label');
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
-    checkbox.checked = section.is_public ?? section.isPublic;
-    checkbox.dataset.sheetName = section.sheet_name ?? section.name;
-    label.append(checkbox, ` Public: ${checkbox.dataset.sheetName}`);
-    sectionsContainer.appendChild(label);
+    checkbox.checked = section.isPublic;
+    checkbox.addEventListener('change', () => {
+      section.isPublic = checkbox.checked;
+    });
+    const name = document.createElement('span');
+    name.textContent = section.name;
+    label.append(checkbox, name);
+
+    const removeButton = document.createElement('button');
+    removeButton.className = 'remove-sheet-button';
+    removeButton.type = 'button';
+    removeButton.textContent = 'Quitar';
+    removeButton.addEventListener('click', () => {
+      sections.splice(index, 1);
+      renderSections();
+    });
+
+    row.append(label, removeButton);
+    sectionsContainer.appendChild(row);
   });
 }

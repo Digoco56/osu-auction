@@ -82,6 +82,11 @@ app.use(session({
 // Serve static files from the client directory 
 app.use(express.static(path.join(__dirname, '../client')));
 
+// Lightweight endpoint for Render health checks and uptime monitors.
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
 // Route to initiate OAuth2 login with osu!
 app.get('/auth/osu', (req, res) => {
     const params = new URLSearchParams({
