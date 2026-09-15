@@ -13,8 +13,8 @@ async function loadConfiguration() {
     if (!response.ok) throw new Error('Could not load mappool configuration');
     const configuration = await response.json();
     statusMessage.textContent = configuration.spreadsheetConfigured
-      ? 'Google Sheets está configurado.'
-      : 'Configura la URL y el token de Apps Script en el servidor.';
+      ? 'Google Sheets is configured.'
+      : 'Configure the Apps Script URL and token on the server.';
     sections = configuration.sections.map(section => ({
       name: section.sheet_name,
       isPublic: section.is_public
@@ -22,7 +22,7 @@ async function loadConfiguration() {
     renderSections();
   } catch (error) {
     console.error('Error loading mappool configuration:', error);
-    statusMessage.textContent = 'No se pudo cargar la configuración del mappool.';
+    statusMessage.textContent = 'Mappool configuration could not be loaded.';
   }
 }
 
@@ -38,7 +38,7 @@ function addSheet() {
   const name = sheetInput.value.trim();
   if (!name) return;
   if (sections.some(section => section.name.toLowerCase() === name.toLowerCase())) {
-    statusMessage.textContent = 'Esa pestaña ya está añadida.';
+    statusMessage.textContent = 'That tab has already been added.';
     return;
   }
   sections.push({ name, isPublic: false });
@@ -60,10 +60,10 @@ form.addEventListener('submit', async event => {
       body: JSON.stringify({ sections: payload })
     });
     if (!response.ok) throw new Error(await response.text());
-    statusMessage.textContent = 'Visibilidad guardada correctamente.';
+    statusMessage.textContent = 'Visibility saved successfully.';
   } catch (error) {
     console.error('Error saving mappool configuration:', error);
-    statusMessage.textContent = 'No se pudo guardar la visibilidad.';
+    statusMessage.textContent = 'Visibility could not be saved.';
   }
 });
 
@@ -72,7 +72,7 @@ function renderSections() {
   if (!sections.length) {
     const emptyMessage = document.createElement('p');
     emptyMessage.className = 'empty-state';
-    emptyMessage.textContent = 'Todavía no hay pestañas añadidas.';
+    emptyMessage.textContent = 'No tabs have been added yet.';
     sectionsContainer.appendChild(emptyMessage);
     return;
   }
@@ -94,7 +94,7 @@ function renderSections() {
     const removeButton = document.createElement('button');
     removeButton.className = 'remove-sheet-button';
     removeButton.type = 'button';
-    removeButton.textContent = 'Quitar';
+    removeButton.textContent = 'Remove';
     removeButton.addEventListener('click', () => {
       sections.splice(index, 1);
       renderSections();

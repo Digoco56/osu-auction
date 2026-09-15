@@ -41,7 +41,7 @@ fetch(`${API_BASE}/admin/logged-users`)
   })
   .catch(error => {
     console.error('Error fetching users:', error);
-    statusMessage.textContent = 'No se pudieron cargar los usuarios.';
+    statusMessage.textContent = 'Users could not be loaded.';
   });
 
 function renderUsers() {
@@ -117,7 +117,7 @@ function createAvatarCell(avatarUrl) {
 saveButton.onclick = async () => {
   const entries = Object.entries(pendingUpdates);
   if (!entries.length) {
-    statusMessage.textContent = 'No hay cambios pendientes.';
+    statusMessage.textContent = 'There are no pending changes.';
     return;
   }
 
@@ -134,11 +134,11 @@ saveButton.onclick = async () => {
       if (user) user.role = role;
       delete pendingUpdates[userId];
     }));
-    statusMessage.textContent = 'Cambios guardados correctamente.';
+    statusMessage.textContent = 'Changes saved successfully.';
     renderUsers();
   } catch (error) {
     console.error('Error updating roles:', error);
-    statusMessage.textContent = 'No se pudieron guardar todos los cambios.';
+    statusMessage.textContent = 'Not all changes could be saved.';
   } finally {
     saveButton.disabled = false;
   }
