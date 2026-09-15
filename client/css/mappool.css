@@ -8,7 +8,7 @@
 .mappool-section {
   width: 100%;
   box-sizing: border-box;
-  overflow-x: visible;
+  overflow-x: auto;
   background: #142333;
   border: 1px solid rgba(102, 192, 244, 0.24);
   border-radius: 12px;
@@ -24,8 +24,9 @@
 }
 
 .mappool-section table {
-  width: 100%;
+  width: max-content;
   min-width: 0;
+  margin: 0 auto;
   border-collapse: separate;
   border-spacing: 0 0.15rem;
   table-layout: auto;
@@ -97,6 +98,10 @@
 
   .mappool-section {
     padding: 1rem;
+  }
+
+  .mappool-section table {
+    margin: 0;
   }
 
   .mappool-section tbody tr {
