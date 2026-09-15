@@ -144,4 +144,3 @@ saveButton.onclick = async () => {
   }
 };
 
-document.body.appendChild(saveButton);

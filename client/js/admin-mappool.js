@@ -4,6 +4,7 @@ const addSheetButton = document.getElementById('add-sheet-button');
 const sectionsContainer = document.getElementById('mappool-sections');
 const statusMessage = document.getElementById('mappool-config-status');
 let sections = [];
+let configurationLoaded = false;
 
 loadConfiguration();
 
@@ -19,6 +20,7 @@ async function loadConfiguration() {
       name: section.sheet_name,
       isPublic: section.is_public
     }));
+    configurationLoaded = true;
     renderSections();
   } catch (error) {
     console.error('Error loading mappool configuration:', error);
@@ -38,6 +40,11 @@ sheetInput.addEventListener('keydown', event => {
 });
 
 function addSheet() {
+  if (!configurationLoaded) {
+    statusMessage.textContent = 'Mappool configuration is still loading. Try again in a moment.';
+    return;
+  }
+
   const name = sheetInput.value.trim();
   if (!name) {
     statusMessage.textContent = 'Enter a Google Sheets tab name first.';
