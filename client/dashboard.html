@@ -1,20 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <title>osu!Auction - Dashboard</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>osu! Auction Dashboard</title>
+  <link rel="stylesheet" href="css/homepage.css" />
 </head>
-
 <body>
-    <h1>User Dashboard</h1>
-    <div id="user-info"></div>
-    <a class="button" id="public-mappool-link" href="/mappool.html" hidden>View mappool</a>
-    <a class="button" href="/logout">Logout</a>
+  <div class="dashboard-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">o!</div>
+        <span>osu! Auction</span>
+      </div>
 
-    <script src="js/main.js"></script>
-    <script src="js/mappool-access.js"></script>
+      <nav>
+        <a href="#">Dashboard</a>
+        <a href="#">Players</a>
+        <a href="#">Teams</a>
+        <a href="/mappool.html">Mappool</a>
+        <a href="#">Rules</a>
+      </nav>
+
+      <div class="user-pill">
+        <img id="dashboard-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar" />
+        <span id="dashboard-username">PlayerName</span>
+      </div>
+    </header>
+
+    <section class="hero-dashboard">
+      <div class="panel welcome-panel">
+        <span class="eyebrow">Logged in</span>
+        <h1 id="welcome-message">Welcome back, PlayerName.</h1>
+        <p>
+          Your profile is active, your captain has already assigned you to a pool, and the auction round is live.
+          You can review your team, your budget, and your next match status below.
+        </p>
+
+        <div class="action-row">
+          <a href="#" class="btn btn-primary">View profile</a>
+          <a href="/mappool.html" class="btn btn-secondary">Open mappool</a>
+          <a href="/logout" class="btn btn-secondary">Logout</a>
+        </div>
+      </div>
+
+      <aside class="panel summary-panel">
+        <h3>Overview</h3>
+        <ul class="summary-list">
+          <li class="summary-item">
+            <span class="summary-label">Role</span>
+            <span class="summary-value" id="user-role">Player</span>
+          </li>
+          <li class="summary-item">
+            <span class="summary-label">Team</span>
+            <span class="summary-value">Crimson Tide</span>
+          </li>
+          <li class="summary-item">
+            <span class="summary-label">Auction</span>
+            <span class="summary-value">Live</span>
+          </li>
+          <li class="summary-item">
+            <span class="summary-label">Budget</span>
+            <span class="summary-value">10,500</span>
+          </li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat-card panel">
+        <span class="label">Total credits</span>
+        <span class="value accent">10,500</span>
+      </div>
+
+      <div class="stat-card panel">
+        <span class="label">Team rank</span>
+        <span class="value">#4</span>
+      </div>
+
+      <div class="stat-card panel">
+        <span class="label">Players in squad</span>
+        <span class="value">7</span>
+      </div>
+
+      <div class="stat-card panel">
+        <span class="label">Next match</span>
+        <span class="value">05:30</span>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <div class="panel card">
+        <div class="card-header">
+          <h3>Team lineup</h3>
+          <span class="badge badge-live">Live roster</span>
+        </div>
+
+        <div class="team-lineup">
+          <div class="player-row">
+            <div class="player-main">
+              <img class="avatar" src="https://a.ppy.sh/1001" alt="Player avatar" />
+              <div>
+                <div class="player-name">Vexx</div>
+                <div class="player-role">Captain</div>
+              </div>
+            </div>
+            <div class="player-price">13,200</div>
+          </div>
+
+          <div class="player-row">
+            <div class="player-main">
+              <img class="avatar" src="https://a.ppy.sh/1002" alt="Player avatar" />
+              <div>
+                <div class="player-name">Nexus</div>
+                <div class="player-role">Top</div>
+              </div>
+            </div>
+            <div class="player-price">9,860</div>
+          </div>
+
+          <div class="player-row">
+            <div class="player-main">
+              <img class="avatar" src="https://a.ppy.sh/1003" alt="Player avatar" />
+              <div>
+                <div class="player-name">Kaito</div>
+                <div class="player-role">Support</div>
+              </div>
+            </div>
+            <div class="player-price">8,440</div>
+          </div>
+
+          <div class="player-row">
+            <div class="player-main">
+              <img class="avatar" src="https://a.ppy.sh/1004" alt="Player avatar" />
+              <div>
+                <div class="player-name">Rin</div>
+                <div class="player-role">Mid</div>
+              </div>
+            </div>
+            <div class="player-price">7,910</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel card">
+        <div class="card-header">
+          <h3>Session summary</h3>
+          <span class="badge badge-warn">Pending</span>
+        </div>
+
+        <div class="mini-list">
+          <div class="mini-row">
+            <strong>Draft status</strong>
+            <span>Round 3</span>
+          </div>
+          <div class="mini-row">
+            <strong>Current duty</strong>
+            <span>Available</span>
+          </div>
+          <div class="mini-row">
+            <strong>Next round</strong>
+            <span>Today, 18:30</span>
+          </div>
+          <div class="mini-row">
+            <strong>Rules</strong>
+            <span>Updated</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <div class="panel card">
+        <div class="card-header">
+          <h3>Latest activity</h3>
+        </div>
+
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div>
+              <div class="timeline-meta">18:05</div>
+              <div class="timeline-title">Your team drafted a new support player.</div>
+            </div>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div>
+              <div class="timeline-meta">17:40</div>
+              <div class="timeline-title">Mappool was refreshed and published.</div>
+            </div>
+          </div>
+
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div>
+              <div class="timeline-meta">16:20</div>
+              <div class="timeline-title">Auction round 2 has started.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel card">
+        <div class="card-header">
+          <h3>Quick links</h3>
+        </div>
+
+        <div class="mini-list">
+          <div class="mini-row">
+            <strong>Mappool</strong>
+            <span>Open</span>
+          </div>
+          <div class="mini-row">
+            <strong>Rules</strong>
+            <span>Read</span>
+          </div>
+          <div class="mini-row">
+            <strong>Community</strong>
+            <span>Discord</span>
+          </div>
+          <div class="mini-row">
+            <strong>Admin panel</strong>
+            <span>Access</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    async function loadDashboardUser() {
+      try {
+        const response = await fetch('/api/user');
+        if (!response.ok) {
+          window.location.href = '/';
+          return;
+        }
+
+        const user = await response.json();
+        const username = user.username || 'Player';
+        const displayRole = (user.role || 'player').charAt(0).toUpperCase() + (user.role || 'player').slice(1);
+
+        const avatarEl = document.getElementById('dashboard-user-avatar');
+        const usernameEl = document.getElementById('dashboard-username');
+        const welcomeEl = document.getElementById('welcome-message');
+        const roleEl = document.getElementById('user-role');
+
+        if (avatarEl && user.avatar_url) {
+          avatarEl.src = user.avatar_url;
+        }
+
+        if (usernameEl) usernameEl.textContent = username;
+        if (welcomeEl) welcomeEl.textContent = `Welcome back, ${username}.`;
+        if (roleEl) roleEl.textContent = displayRole;
+      } catch (error) {
+        console.error('Could not load dashboard user:', error);
+        window.location.href = '/';
+      }
+    }
+
+    loadDashboardUser();
+  </script>
 </body>
-
 </html>

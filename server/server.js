@@ -123,6 +123,40 @@ app.get('/mappool.html', async (req, res) => {
 // Serve static files from the client directory 
 app.use(express.static(path.join(__dirname, '../client')));
 
+// Redirect users depending on whether they are logged in.
+app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+
+    const publicPaths = [
+        '/',
+        '/index.html',
+        '/mappool.html',
+        '/health',
+        '/auth/osu',
+        '/auth/osu/callback',
+        '/logout'
+    ];
+
+    const isPublicPath = publicPaths.includes(req.path)
+        || req.path.startsWith('/api/')
+        || req.path.startsWith('/css/')
+        || req.path.startsWith('/js/')
+        || req.path.startsWith('/img/');
+
+    if (isPublicPath) {
+        if ((req.path === '/' || req.path === '/index.html') && req.session?.user) {
+            return res.redirect('/dashboard.html');
+        }
+        return next();
+    }
+
+    if (req.session?.user) {
+        return res.redirect('/dashboard.html');
+    }
+
+    return res.redirect('/');
+});
+
 // Lightweight endpoint for Render health checks and uptime monitors.
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
