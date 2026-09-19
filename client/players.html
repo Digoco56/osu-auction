@@ -110,6 +110,11 @@
       );
       if (Number(player.bws_badge_count) > 0) {
         metadata.append(createPlayerMetaItem('Post-BWS rank', formatRank(player.bws_rank)));
+      } else {
+        const reservedSlot = document.createElement('div');
+        reservedSlot.className = 'player-meta-item player-meta-placeholder';
+        reservedSlot.setAttribute('aria-hidden', 'true');
+        metadata.append(reservedSlot);
       }
 
       details.append(nameRow, role, team, metadata);

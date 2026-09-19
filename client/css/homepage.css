@@ -127,6 +127,10 @@ nav a:hover {
   text-decoration: none;
 }
 
+.btn[hidden] {
+  display: none;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%);
   color: var(--text-inverse);
