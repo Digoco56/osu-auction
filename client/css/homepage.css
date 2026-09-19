@@ -488,6 +488,43 @@ footer {
   text-align: center;
 }
 
+.players-directory {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.player-directory-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.directory-avatar {
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.player-directory-card h2,
+.player-directory-card p {
+  margin: 0;
+}
+
+.player-directory-card h2 {
+  font-size: 1rem;
+}
+
+.player-directory-card p {
+  margin-top: 0.2rem;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+}
+
 .player-row {
   display: flex;
   align-items: center;
@@ -603,6 +640,10 @@ footer {
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .players-directory {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -621,6 +662,10 @@ footer {
   .stats-grid {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .players-directory {
+    grid-template-columns: 1fr;
   }
 
   .hero {

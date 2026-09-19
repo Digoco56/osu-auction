@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const session = require('express-session');
 const path = require('path');
+const crypto = require('crypto');
 const db = require('./db');
 
 const app = express();
@@ -22,9 +23,20 @@ async function initializeDatabase() {
             user_id BIGINT PRIMARY KEY,
             username TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'player',
-            avatar_url TEXT
+            avatar_url TEXT,
+            discord_id TEXT,
+            discord_username TEXT,
+            is_registered_player BOOLEAN NOT NULL DEFAULT FALSE,
+            registered_at TIMESTAMPTZ
         );
         ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_id TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_username TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS is_registered_player BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS registered_at TIMESTAMPTZ;
+        CREATE UNIQUE INDEX IF NOT EXISTS users_discord_id_unique
+            ON users (discord_id)
+            WHERE discord_id IS NOT NULL;
     `);
 
     await db.query(`
@@ -125,10 +137,42 @@ app.use(session({
 async function isAdminUser(req) {
     if (!req.session.user) return false;
     const result = await db.query(
-        'SELECT role FROM users WHERE user_id = $1',
+        `SELECT role
+         FROM users
+         WHERE user_id = $1
+           AND is_registered_player = TRUE
+           AND discord_id IS NOT NULL`,
         [req.session.user.id]
     );
     return result.rows[0]?.role === 'admin';
+}
+
+async function isRegisteredPlayer(req) {
+    if (!req.session.user) return false;
+    const result = await db.query(
+        `SELECT 1
+         FROM users
+         WHERE user_id = $1
+           AND is_registered_player = TRUE
+           AND discord_id IS NOT NULL`,
+        [req.session.user.id]
+    );
+    return result.rows.length > 0;
+}
+
+function saveSession(req) {
+    return new Promise((resolve, reject) => {
+        req.session.save(error => (error ? reject(error) : resolve()));
+    });
+}
+
+function discordConfigurationIsComplete() {
+    return Boolean(
+        process.env.DISCORD_CLIENT_ID
+        && process.env.DISCORD_CLIENT_SECRET
+        && process.env.DISCORD_REDIRECT_URI
+        && process.env.DISCORD_GUILD_ID
+    );
 }
 
 async function isMappoolPublic() {
@@ -195,19 +239,36 @@ app.get('/api/mappool-access', async (req, res) => {
 
 // Route to initiate OAuth2 login with osu!
 app.get('/auth/osu', (req, res) => {
+    if (!discordConfigurationIsComplete()) {
+        return res.status(500).send('Discord login is not configured.');
+    }
+
+    const state = crypto.randomUUID();
+    req.session.osuOAuthState = state;
+    delete req.session.pendingOsuUser;
+
     const params = new URLSearchParams({
         client_id: process.env.OSU_CLIENT_ID,
         redirect_uri: process.env.OSU_REDIRECT_URI,
         response_type: 'code',
-        scope: 'identify'
+        scope: 'identify',
+        state
     });
-    res.redirect(`https://osu.ppy.sh/oauth/authorize?${params.toString()}`);
+
+    saveSession(req)
+        .then(() => res.redirect(`https://osu.ppy.sh/oauth/authorize?${params.toString()}`))
+        .catch(error => {
+            console.error('Could not start osu! login:', error);
+            res.status(500).send('Could not start osu! login.');
+        });
 });
 
 // Callback route after osu! authentication
 app.get('/auth/osu/callback', async (req, res) => {
     const code = req.query.code;
-    if (!code) return res.status(400).send('Authorization code not provided.');
+    if (!code || req.query.state !== req.session.osuOAuthState) {
+        return res.status(400).send('Invalid osu! authorization response.');
+    }
 
     try {
         // Exchange code for access token
@@ -235,23 +296,119 @@ app.get('/auth/osu/callback', async (req, res) => {
 
         const user = userResponse.data;
 
-        // Store user info in session
-        req.session.user = user;
+        req.session.pendingOsuUser = {
+            id: user.id,
+            username: user.username,
+            avatar_url: user.avatar_url
+        };
+        delete req.session.osuOAuthState;
+        await saveSession(req);
+        res.redirect('/auth/discord');
+    } catch (error) {
+        console.error('Authentication error:', error.response?.data || error.message);
+        res.status(500).send('Authentication failed.');
+    }
+});
 
-        await db.query(
-            'DELETE FROM sessions WHERE user_id = $1',
-            [user.id]
+app.get('/auth/discord', async (req, res) => {
+    if (!req.session.pendingOsuUser) {
+        return res.redirect('/');
+    }
+    if (!discordConfigurationIsComplete()) {
+        return res.status(500).send('Discord login is not configured.');
+    }
+
+    const state = crypto.randomUUID();
+    req.session.discordOAuthState = state;
+    await saveSession(req);
+
+    const params = new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        redirect_uri: process.env.DISCORD_REDIRECT_URI,
+        response_type: 'code',
+        scope: 'identify guilds',
+        state
+    });
+    res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
+});
+
+app.get('/auth/discord/callback', async (req, res) => {
+    const code = req.query.code;
+    const pendingOsuUser = req.session.pendingOsuUser;
+    if (req.query.error === 'access_denied') {
+        delete req.session.pendingOsuUser;
+        delete req.session.discordOAuthState;
+        await saveSession(req);
+        return res.redirect('/?discord=cancelled');
+    }
+
+    if (!code || !pendingOsuUser || req.query.state !== req.session.discordOAuthState) {
+        return res.status(400).send('Invalid Discord authorization response.');
+    }
+
+    try {
+        const tokenResponse = await axios.post(
+            'https://discord.com/api/oauth2/token',
+            new URLSearchParams({
+                client_id: process.env.DISCORD_CLIENT_ID,
+                client_secret: process.env.DISCORD_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: process.env.DISCORD_REDIRECT_URI
+            }).toString(),
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
         );
+        const accessToken = tokenResponse.data.access_token;
+        const headers = { Authorization: `Bearer ${accessToken}` };
+        const [discordUserResponse, guildsResponse] = await Promise.all([
+            axios.get('https://discord.com/api/users/@me', { headers }),
+            axios.get('https://discord.com/api/users/@me/guilds', { headers })
+        ]);
+        const hasJoinedDiscord = guildsResponse.data.some(guild => (
+            guild.id === process.env.DISCORD_GUILD_ID
+        ));
 
-        // Save user in the database or update username if already exists
+        if (!hasJoinedDiscord) {
+            delete req.session.pendingOsuUser;
+            delete req.session.discordOAuthState;
+            await saveSession(req);
+            return res.redirect('/?discord=required');
+        }
+
+        const discordUser = discordUserResponse.data;
+        const existingDiscordLink = await db.query(
+            'SELECT user_id FROM users WHERE discord_id = $1 AND user_id <> $2',
+            [discordUser.id, pendingOsuUser.id]
+        );
+        if (existingDiscordLink.rows.length > 0) {
+            return res.status(409).send('This Discord account is already linked to another osu! account.');
+        }
+
         await db.query(`
-            INSERT INTO users (user_id, username, avatar_url)
-            VALUES ($1, $2, $3)
+            INSERT INTO users (
+                user_id, username, avatar_url, discord_id, discord_username,
+                is_registered_player, registered_at
+            )
+            VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
             ON CONFLICT (user_id) DO UPDATE SET
                 username = EXCLUDED.username,
-                avatar_url = EXCLUDED.avatar_url
-        `, [user.id, user.username, user.avatar_url]);
+                avatar_url = EXCLUDED.avatar_url,
+                discord_id = EXCLUDED.discord_id,
+                discord_username = EXCLUDED.discord_username,
+                is_registered_player = TRUE,
+                registered_at = COALESCE(users.registered_at, NOW())
+        `, [
+            pendingOsuUser.id,
+            pendingOsuUser.username,
+            pendingOsuUser.avatar_url,
+            discordUser.id,
+            discordUser.global_name || discordUser.username
+        ]);
 
+        req.session.user = pendingOsuUser;
+        delete req.session.pendingOsuUser;
+        delete req.session.discordOAuthState;
+        await db.query('DELETE FROM sessions WHERE user_id = $1', [pendingOsuUser.id]);
         await db.query(`
             INSERT INTO sessions (session_id, user_id, username, avatar_url, login_time)
             VALUES ($1, $2, $3, $4, $5)
@@ -260,18 +417,24 @@ app.get('/auth/osu/callback', async (req, res) => {
                 username = EXCLUDED.username,
                 avatar_url = EXCLUDED.avatar_url,
                 login_time = EXCLUDED.login_time
-        `, [req.sessionID, user.id, user.username, user.avatar_url, new Date().toISOString()]);
-
+        `, [
+            req.sessionID,
+            pendingOsuUser.id,
+            pendingOsuUser.username,
+            pendingOsuUser.avatar_url,
+            new Date().toISOString()
+        ]);
+        await saveSession(req);
         res.redirect('/dashboard.html');
     } catch (error) {
-        console.error('Authentication error:', error.response?.data || error.message);
-        res.status(500).send('Authentication failed.');
+        console.error('Discord authentication error:', error.response?.data || error.message);
+        res.status(500).send('Discord authentication failed.');
     }
 });
 
 // API route to get current user info
 app.get('/api/user', async (req, res) => {
-    if (!req.session.user) {
+    if (!(await isRegisteredPlayer(req))) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -287,7 +450,7 @@ app.get('/api/user', async (req, res) => {
 });
 
 app.get('/api/user/team', async (req, res) => {
-    if (!req.session.user) {
+    if (!(await isRegisteredPlayer(req))) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -335,6 +498,23 @@ app.get('/api/user/team', async (req, res) => {
     }
 });
 
+app.get('/api/players', async (req, res) => {
+    if (!(await isRegisteredPlayer(req))) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const players = await db.query(`
+        SELECT u.user_id, u.username, u.avatar_url, u.role, t.name AS team_name
+        FROM users u
+        LEFT JOIN team_members tm ON tm.user_id = u.user_id
+        LEFT JOIN teams t ON t.team_id = tm.team_id
+        WHERE u.is_registered_player = TRUE
+          AND u.discord_id IS NOT NULL
+        ORDER BY u.username
+    `);
+    res.json(players.rows);
+});
+
 // Logout route 
 app.get('/logout', async (req, res) => {
     await db.query(`DELETE FROM sessions WHERE session_id = $1`, [req.sessionID]);
@@ -345,7 +525,7 @@ app.get('/logout', async (req, res) => {
 });
 
 async function requireAdmin(req, res, next) {
-    if (!req.session.user) return res.status(401).send('Not authenticated');
+    if (!(await isRegisteredPlayer(req))) return res.status(401).send('Not authenticated');
 
     const result = await db.query(
         'SELECT role FROM users WHERE user_id = $1',
