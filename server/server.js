@@ -15,7 +15,7 @@ const AA_COLUMN_INDEX = 26;
 const AB_COLUMN_INDEX = 27;
 const AC_COLUMN_INDEX = 28;
 const BWS_BADGE_CUTOFF = new Date('2025-04-01T00:00:00Z');
-const BWS_MIN_RANK = 10000;
+const BWS_MIN_RANK = 26000;
 const BWS_MAX_RANK = 99999;
 const BWS_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const REGISTRATION_START_AT_SEED = process.env.REGISTRATION_START_AT || null;
@@ -291,12 +291,14 @@ async function refreshRegisteredPlayerEligibility(userId, force = false) {
     if (!(await isRegistrationWindowOpen())) return;
 
     const userResult = await db.query(`
-        SELECT is_registered_player, bws_calculated_at
+        SELECT is_registered_player, player_eligibility_status, discord_id, bws_calculated_at
         FROM users
         WHERE user_id = $1
     `, [userId]);
     const player = userResult.rows[0];
-    if (!player?.is_registered_player) return;
+    const isTrackedPlayer = player?.is_registered_player
+        || player?.player_eligibility_status === 'bws-ineligible';
+    if (!isTrackedPlayer || !player.discord_id) return;
 
     const lastCalculation = player.bws_calculated_at && new Date(player.bws_calculated_at);
     if (!force && lastCalculation && Date.now() - lastCalculation.getTime() < BWS_REFRESH_INTERVAL_MS) {
@@ -306,6 +308,11 @@ async function refreshRegisteredPlayerEligibility(userId, force = false) {
     const evaluation = await calculateBwsEligibility(userId);
     if (evaluation.eligible) {
         await saveBwsEvaluation(userId, evaluation, 'registered');
+        await db.query(`
+            UPDATE users
+            SET is_registered_player = TRUE
+            WHERE user_id = $1
+        `, [userId]);
         return;
     }
 
@@ -337,6 +344,7 @@ async function refreshAllPlayerEligibilities() {
             SELECT user_id
             FROM users
             WHERE is_registered_player = TRUE
+               OR player_eligibility_status = 'bws-ineligible'
         `);
         for (const { user_id: userId } of result.rows) {
             try {
@@ -648,7 +656,7 @@ app.get('/api/user', async (req, res) => {
     res.set('Cache-Control', 'no-store');
 
     try {
-        await refreshRegisteredPlayerEligibility(req.session.user.id);
+        await refreshRegisteredPlayerEligibility(req.session.user.id, true);
     } catch (error) {
         console.error(`Could not refresh BWS eligibility for current user:`, error.message);
     }
@@ -736,12 +744,14 @@ app.get('/api/players', async (req, res) => {
             u.global_rank,
             u.bws_badge_count,
             u.bws_rank,
+            u.is_registered_player,
+            u.player_eligibility_status,
             t.name AS team_name
         FROM users u
         LEFT JOIN team_members tm ON tm.user_id = u.user_id
         LEFT JOIN teams t ON t.team_id = tm.team_id
-        WHERE u.is_registered_player = TRUE
-          AND u.discord_id IS NOT NULL
+                WHERE (u.is_registered_player = TRUE OR u.player_eligibility_status = 'bws-ineligible')
+                    AND u.discord_id IS NOT NULL
         ORDER BY u.username
     `);
     res.json(players.rows);

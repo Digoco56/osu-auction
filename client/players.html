@@ -77,6 +77,8 @@
     function createPlayerCard(player) {
       const card = document.createElement('article');
       card.className = 'player-directory-card panel';
+      const isIneligible = player.player_eligibility_status === 'bws-ineligible';
+      card.classList.toggle('is-ineligible', isIneligible);
 
       const avatar = document.createElement('img');
       avatar.className = 'directory-avatar';
@@ -97,6 +99,12 @@
       const name = document.createElement('h2');
       name.textContent = player.username;
       nameRow.append(name);
+      if (isIneligible) {
+        const ineligibleMarker = document.createElement('span');
+        ineligibleMarker.className = 'player-ineligible-marker';
+        ineligibleMarker.textContent = 'Cannot participate';
+        nameRow.append(ineligibleMarker);
+      }
       const role = document.createElement('p');
       role.className = `player-directory-role role-${String(player.role || 'player').toLowerCase()}`;
       role.textContent = player.role;
@@ -153,7 +161,8 @@
         if (user.avatar_url) document.getElementById('dashboard-user-avatar').src = user.avatar_url;
         document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
 
-        count.textContent = `${players.length} registered`;
+        const eligiblePlayers = players.filter(player => player.is_registered_player);
+        count.textContent = `${eligiblePlayers.length} registered`;
         directory.replaceChildren(...players.map(createPlayerCard));
         if (players.length === 0) {
           const empty = document.createElement('p');

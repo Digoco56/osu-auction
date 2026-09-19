@@ -225,10 +225,15 @@
             registrationMessage.textContent = 'You are registered as a player.';
           } else {
             const registrationsOpen = registrationWindow.status === 'open';
-            registrationLink.textContent = registrationsOpen ? 'Register as player' : 'Regs not yet open';
-            registrationLink.classList.toggle('is-disabled', !registrationsOpen);
-            registrationLink.setAttribute('aria-disabled', String(!registrationsOpen));
-            if (registrationsOpen) {
+            const isBwsIneligible = user.playerEligibilityStatus === 'bws-ineligible';
+            registrationLink.textContent = isBwsIneligible
+              ? 'Out of rank range'
+              : registrationsOpen
+                ? 'Register as player'
+                : 'Regs not yet open';
+            registrationLink.classList.toggle('is-disabled', !registrationsOpen || isBwsIneligible);
+            registrationLink.setAttribute('aria-disabled', String(!registrationsOpen || isBwsIneligible));
+            if (registrationsOpen && !isBwsIneligible) {
               registrationLink.href = '/auth/discord';
               registrationMessage.textContent = 'Player registration requires being member of the tournament Discord server and a BWS rank from 10,000 to 99,999.';
             } else {
@@ -238,9 +243,9 @@
                 ? `Registrations open: ${formatUtcDateTime(registrationWindow.startAt)}.`
                 : 'Registrations closed.';
             }
-            if (user.playerEligibilityStatus === 'bws-ineligible') {
+            if (isBwsIneligible) {
               registrationMessage.classList.add('is-error');
-              registrationMessage.textContent = 'You are no longer eligible because your BWS rank is outside the 10,000 to 99,999 range.';
+              registrationMessage.textContent = 'You are not registered as a player because your BWS rank is outside the 10,000 to 99,999 range.';
             } else if (registrationsOpen && registrationStatus === 'cancelled') {
               registrationMessage.classList.add('is-error');
               registrationMessage.textContent = 'Discord authorization was cancelled. Registration was not completed.';

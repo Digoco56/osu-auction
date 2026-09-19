@@ -482,6 +482,8 @@ footer {
 }
 
 .stat-card .utc-time-value {
+  position: relative;
+  top: -0.5rem;
   color: var(--text);
   font-size: inherit;
   line-height: 1.1;
@@ -587,10 +589,26 @@ footer {
   font-size: 1rem;
 }
 
+.player-directory-card.is-ineligible {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
 .player-name-row {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.player-ineligible-marker {
+  padding: 0.14rem 0.38rem;
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .country-flag {
