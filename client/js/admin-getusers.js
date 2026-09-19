@@ -1,6 +1,8 @@
-const API_BASE = 'https://osu-auction.onrender.com';
-const pendingUpdates = {};
+const API_BASE = '';
+const pendingRoleUpdates = {};
+const pendingTeamUpdates = {};
 let users = [];
+let teams = [];
 
 const table = document.getElementById('user-table');
 const filterField = document.getElementById('user-filter-field');
@@ -27,16 +29,20 @@ document.querySelectorAll('.admin-nav-button').forEach(button => {
   });
 });
 
-fetch(`${API_BASE}/admin/logged-users`)
-  .then(response => {
-    if (!response.ok) {
+Promise.all([
+  fetch(`${API_BASE}/admin/logged-users`),
+  fetch(`${API_BASE}/admin/teams`)
+])
+  .then(async ([usersResponse, teamsResponse]) => {
+    if (!usersResponse.ok || !teamsResponse.ok) {
       window.location.href = '/';
       throw new Error('Could not load users');
     }
-    return response.json();
+    return Promise.all([usersResponse.json(), teamsResponse.json()]);
   })
-  .then(loadedUsers => {
+  .then(([loadedUsers, loadedTeams]) => {
     users = loadedUsers;
+    teams = loadedTeams;
     renderUsers();
   })
   .catch(error => {
@@ -83,10 +89,29 @@ function createUserRow(user) {
     select.add(option);
   });
   select.addEventListener('change', event => {
-    pendingUpdates[event.target.dataset.userId] = event.target.value;
+    pendingRoleUpdates[event.target.dataset.userId] = event.target.value;
   });
   roleCell.appendChild(select);
   row.appendChild(roleCell);
+
+  const teamCell = document.createElement('td');
+  const teamSelect = document.createElement('select');
+  teamSelect.className = 'team-select';
+  teamSelect.dataset.userId = user.user_id;
+  teamSelect.add(new Option('No team', '', false, !user.team_id));
+  teams.forEach(team => {
+    teamSelect.add(new Option(
+      team.name,
+      team.team_id,
+      false,
+      String(team.team_id) === String(user.team_id)
+    ));
+  });
+  teamSelect.addEventListener('change', event => {
+    pendingTeamUpdates[event.target.dataset.userId] = event.target.value || null;
+  });
+  teamCell.appendChild(teamSelect);
+  row.appendChild(teamCell);
   return row;
 }
 
@@ -115,15 +140,16 @@ function createAvatarCell(avatarUrl) {
 });
 
 saveButton.onclick = async () => {
-  const entries = Object.entries(pendingUpdates);
-  if (!entries.length) {
+  const roleEntries = Object.entries(pendingRoleUpdates);
+  const teamEntries = Object.entries(pendingTeamUpdates);
+  if (!roleEntries.length && !teamEntries.length) {
     statusMessage.textContent = 'There are no pending changes.';
     return;
   }
 
   saveButton.disabled = true;
   try {
-    await Promise.all(entries.map(async ([userId, role]) => {
+    await Promise.all(roleEntries.map(async ([userId, role]) => {
       const response = await fetch(`${API_BASE}/admin/set-role`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,7 +158,22 @@ saveButton.onclick = async () => {
       if (!response.ok) throw new Error(`Could not update user ${userId}`);
       const user = users.find(item => String(item.user_id) === String(userId));
       if (user) user.role = role;
-      delete pendingUpdates[userId];
+      delete pendingRoleUpdates[userId];
+    }));
+    await Promise.all(teamEntries.map(async ([userId, teamId]) => {
+      const response = await fetch(`${API_BASE}/admin/set-user-team`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, teamId })
+      });
+      if (!response.ok) throw new Error(`Could not update team for user ${userId}`);
+      const user = users.find(item => String(item.user_id) === String(userId));
+      const team = teams.find(item => String(item.team_id) === String(teamId));
+      if (user) {
+        user.team_id = teamId;
+        user.team_name = team?.name || null;
+      }
+      delete pendingTeamUpdates[userId];
     }));
     statusMessage.textContent = 'Changes saved successfully.';
     renderUsers();

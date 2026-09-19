@@ -370,8 +370,13 @@ footer {
 
 .timezone-note {
   margin: 0;
-  color: var(--text-soft);
+  padding: 0.6rem 0.8rem;
+  border: 1px solid rgba(124, 156, 255, 0.38);
+  border-radius: 6px;
+  background: rgba(124, 156, 255, 0.1);
+  color: var(--primary-soft);
   font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .panel {
@@ -456,6 +461,12 @@ footer {
   border-color: rgba(34, 197, 94, 0.3);
 }
 
+.badge-muted {
+  background: rgba(157, 180, 255, 0.1);
+  color: var(--primary-soft);
+  border-color: rgba(157, 180, 255, 0.28);
+}
+
 .badge-warn {
   background: rgba(245, 158, 11, 0.1);
   color: #fcd34d;
@@ -466,6 +477,15 @@ footer {
   display: grid;
   gap: 0.8rem;
   margin-top: 0.5rem;
+}
+
+.empty-lineup {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--text-soft);
+  text-align: center;
 }
 
 .player-row {

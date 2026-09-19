@@ -16,78 +16,104 @@ const AC_COLUMN_INDEX = 28;
 let osuApiToken = null;
 let osuApiTokenExpiresAt = 0;
 
-// Crear las tablas si no existen (PostgreSQL)
-db.query(`
-  CREATE TABLE IF NOT EXISTS users (
-    user_id BIGINT PRIMARY KEY,
-    username TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'player'
-  );
-`);
+async function initializeDatabase() {
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            user_id BIGINT PRIMARY KEY,
+            username TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'player',
+            avatar_url TEXT
+        );
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+    `);
 
-db.query(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    session_id TEXT PRIMARY KEY,
-    user_id BIGINT REFERENCES users(user_id),
-    username TEXT,
-    avatar_url TEXT,
-    login_time TIMESTAMP
-  );
-`);
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS teams (
+            team_id BIGSERIAL PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            captain_id BIGINT REFERENCES users(user_id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    `);
 
-db.query(`
-    CREATE TABLE IF NOT EXISTS mappool_sections (
-        sheet_name TEXT PRIMARY KEY,
-        is_public BOOLEAN NOT NULL DEFAULT FALSE,
-        display_order INTEGER NOT NULL DEFAULT 0
-    );
-`);
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS team_members (
+            team_id BIGINT NOT NULL REFERENCES teams(team_id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+            lineup_position SMALLINT,
+            team_role TEXT,
+            auction_price BIGINT,
+            joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (team_id, user_id),
+            UNIQUE (user_id),
+            UNIQUE (team_id, lineup_position)
+        );
+    `);
 
-db.query(`
-    CREATE TABLE IF NOT EXISTS mappool_data (
-        sheet_name TEXT PRIMARY KEY,
-        headers JSONB NOT NULL,
-        rows JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-`);
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS sessions (
+            session_id TEXT PRIMARY KEY,
+            user_id BIGINT REFERENCES users(user_id),
+            username TEXT,
+            avatar_url TEXT,
+            login_time TIMESTAMP
+        );
+    `);
 
-db.query(`
-    CREATE TABLE IF NOT EXISTS mappool_columns (
-        sheet_name TEXT NOT NULL,
-        position INTEGER NOT NULL,
-        header TEXT NOT NULL,
-        PRIMARY KEY (sheet_name, position)
-    );
-`);
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS mappool_sections (
+            sheet_name TEXT PRIMARY KEY,
+            is_public BOOLEAN NOT NULL DEFAULT FALSE,
+            display_order INTEGER NOT NULL DEFAULT 0
+        );
+    `);
 
-db.query(`
-    CREATE TABLE IF NOT EXISTS mappool_rows (
-        sheet_name TEXT NOT NULL,
-        row_number INTEGER NOT NULL,
-        PRIMARY KEY (sheet_name, row_number)
-    );
-`);
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS mappool_data (
+            sheet_name TEXT PRIMARY KEY,
+            headers JSONB NOT NULL,
+            rows JSONB NOT NULL,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    `);
 
-db.query(`
-    CREATE TABLE IF NOT EXISTS mappool_values (
-        sheet_name TEXT NOT NULL,
-        row_number INTEGER NOT NULL,
-        position INTEGER NOT NULL,
-        value TEXT NOT NULL DEFAULT '',
-        PRIMARY KEY (sheet_name, row_number, position)
-    );
-`);
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS mappool_columns (
+            sheet_name TEXT NOT NULL,
+            position INTEGER NOT NULL,
+            header TEXT NOT NULL,
+            PRIMARY KEY (sheet_name, position)
+        );
+    `);
 
-db.query(`
-    CREATE TABLE IF NOT EXISTS site_settings (
-        setting_key TEXT PRIMARY KEY,
-        boolean_value BOOLEAN NOT NULL DEFAULT TRUE
-    );
-    INSERT INTO site_settings (setting_key, boolean_value)
-    VALUES ('mappool_public', TRUE)
-    ON CONFLICT (setting_key) DO NOTHING;
-`);
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS mappool_rows (
+            sheet_name TEXT NOT NULL,
+            row_number INTEGER NOT NULL,
+            PRIMARY KEY (sheet_name, row_number)
+        );
+    `);
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS mappool_values (
+            sheet_name TEXT NOT NULL,
+            row_number INTEGER NOT NULL,
+            position INTEGER NOT NULL,
+            value TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (sheet_name, row_number, position)
+        );
+    `);
+
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS site_settings (
+            setting_key TEXT PRIMARY KEY,
+            boolean_value BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        INSERT INTO site_settings (setting_key, boolean_value)
+        VALUES ('mappool_public', TRUE)
+        ON CONFLICT (setting_key) DO NOTHING;
+    `);
+}
 
 // Configure session middleware
 app.use(session({
@@ -139,6 +165,7 @@ app.use((req, res, next) => {
 
     const isPublicPath = publicPaths.includes(req.path)
         || req.path.startsWith('/api/')
+        || req.path.startsWith('/admin/')
         || req.path.startsWith('/css/')
         || req.path.startsWith('/js/')
         || req.path.startsWith('/img/');
@@ -218,10 +245,12 @@ app.get('/auth/osu/callback', async (req, res) => {
 
         // Save user in the database or update username if already exists
         await db.query(`
-            INSERT INTO users (user_id, username)
-            VALUES ($1, $2)
-            ON CONFLICT (user_id) DO UPDATE SET username = EXCLUDED.username
-        `, [user.id, user.username]);
+            INSERT INTO users (user_id, username, avatar_url)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id) DO UPDATE SET
+                username = EXCLUDED.username,
+                avatar_url = EXCLUDED.avatar_url
+        `, [user.id, user.username, user.avatar_url]);
 
         await db.query(`
             INSERT INTO sessions (session_id, user_id, username, avatar_url, login_time)
@@ -255,6 +284,55 @@ app.get('/api/user', async (req, res) => {
         ...req.session.user,
         role: result.rows[0]?.role || 'player'
     });
+});
+
+app.get('/api/user/team', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const teamResult = await db.query(`
+            SELECT t.team_id, t.name, t.captain_id
+            FROM teams t
+            JOIN team_members tm ON tm.team_id = t.team_id
+            WHERE tm.user_id = $1
+            LIMIT 1
+        `, [req.session.user.id]);
+
+        if (teamResult.rows.length === 0) {
+            return res.json({ team: null, lineup: [] });
+        }
+
+        const team = teamResult.rows[0];
+        const lineupResult = await db.query(`
+            SELECT
+                u.user_id,
+                u.username,
+                u.avatar_url,
+                tm.team_role,
+                tm.auction_price,
+                tm.lineup_position,
+                CASE WHEN t.captain_id = u.user_id THEN TRUE ELSE FALSE END AS is_captain
+            FROM team_members tm
+            JOIN users u ON u.user_id = tm.user_id
+            JOIN teams t ON t.team_id = tm.team_id
+            WHERE tm.team_id = $1
+            ORDER BY tm.lineup_position NULLS LAST, tm.joined_at, u.username
+        `, [team.team_id]);
+
+        res.json({
+            team: {
+                id: team.team_id,
+                name: team.name,
+                captainId: team.captain_id
+            },
+            lineup: lineupResult.rows
+        });
+    } catch (error) {
+        console.error('Could not load team lineup:', error.message);
+        res.status(500).json({ error: 'Could not load team lineup' });
+    }
 });
 
 // Logout route 
@@ -651,20 +729,37 @@ app.get('/admin/logged-users', async (req, res) => {
     }
 
     // Obtener todos los usuarios registrados
-    const users = await db.query(`
-        SELECT u.user_id, u.username, u.role,
-          (
-            SELECT s.avatar_url
-            FROM sessions s
-            WHERE s.user_id = u.user_id
-            ORDER BY login_time DESC
-            LIMIT 1
-          ) AS avatar_url
-        FROM users u
-      `);
+        const users = await db.query(`
+                SELECT
+                        u.user_id,
+                        u.username,
+                        u.role,
+                        COALESCE(u.avatar_url, (
+                                SELECT s.avatar_url
+                                FROM sessions s
+                                WHERE s.user_id = u.user_id
+                                ORDER BY login_time DESC
+                                LIMIT 1
+                        )) AS avatar_url,
+                        t.team_id,
+                        t.name AS team_name
+                FROM users u
+                LEFT JOIN team_members tm ON tm.user_id = u.user_id
+                LEFT JOIN teams t ON t.team_id = tm.team_id
+                ORDER BY u.username
+        `);
       
 
     res.json(users.rows);
+});
+
+app.get('/admin/teams', requireAdmin, async (req, res) => {
+    const teams = await db.query(`
+        SELECT team_id, name
+        FROM teams
+        ORDER BY name
+    `);
+    res.json(teams.rows);
 });
 
 
@@ -690,10 +785,52 @@ app.post('/admin/set-role', express.json(), async (req, res) => {
     res.sendStatus(200);
   });
 
+app.post('/admin/set-user-team', requireAdmin, express.json(), async (req, res) => {
+    const { userId, teamId } = req.body;
+    const parsedUserId = Number(userId);
+
+    if (!Number.isSafeInteger(parsedUserId) || parsedUserId < 1) {
+        return res.status(400).json({ error: 'A valid user is required' });
+    }
+
+    if (teamId === null) {
+        await db.query('DELETE FROM team_members WHERE user_id = $1', [parsedUserId]);
+        return res.sendStatus(204);
+    }
+
+    const parsedTeamId = Number(teamId);
+    if (!Number.isSafeInteger(parsedTeamId) || parsedTeamId < 1) {
+        return res.status(400).json({ error: 'A valid team is required' });
+    }
+
+    const teamResult = await db.query(
+        'SELECT team_id FROM teams WHERE team_id = $1',
+        [parsedTeamId]
+    );
+    if (teamResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Team not found' });
+    }
+
+    await db.query('DELETE FROM team_members WHERE user_id = $1', [parsedUserId]);
+    await db.query(
+        'INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)',
+        [parsedTeamId, parsedUserId]
+    );
+
+    res.sendStatus(204);
+});
+
 
 
 // Start the server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+initializeDatabase()
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server running at http://localhost:${PORT}`);
+        });
+    })
+    .catch(error => {
+        console.error('Database initialization failed:', error);
+        process.exit(1);
+    });

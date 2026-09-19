@@ -61,62 +61,18 @@
 
       <div class="stat-card panel">
         <span class="label">Next match</span>
-        <span class="value">05:30 UTC+0</span>
+        <span class="value">05:30</span>
       </div>
     </section>
 
     <section class="content-grid">
       <div class="panel card">
         <div class="card-header">
-          <h3>Team lineup</h3>
-          <span class="badge badge-live">Live roster</span>
+          <h3 id="team-lineup-title">Team lineup</h3>
+          <span id="team-lineup-status" class="badge">Loading</span>
         </div>
 
-        <div class="team-lineup">
-          <div class="player-row">
-            <div class="player-main">
-              <img class="avatar" src="https://a.ppy.sh/1001" alt="Player avatar" />
-              <div>
-                <div class="player-name">Vexx</div>
-                <div class="player-role">Captain</div>
-              </div>
-            </div>
-            <div class="player-price">13,200</div>
-          </div>
-
-          <div class="player-row">
-            <div class="player-main">
-              <img class="avatar" src="https://a.ppy.sh/1002" alt="Player avatar" />
-              <div>
-                <div class="player-name">Nexus</div>
-                <div class="player-role">Top</div>
-              </div>
-            </div>
-            <div class="player-price">9,860</div>
-          </div>
-
-          <div class="player-row">
-            <div class="player-main">
-              <img class="avatar" src="https://a.ppy.sh/1003" alt="Player avatar" />
-              <div>
-                <div class="player-name">Kaito</div>
-                <div class="player-role">Support</div>
-              </div>
-            </div>
-            <div class="player-price">8,440</div>
-          </div>
-
-          <div class="player-row">
-            <div class="player-main">
-              <img class="avatar" src="https://a.ppy.sh/1004" alt="Player avatar" />
-              <div>
-                <div class="player-name">Rin</div>
-                <div class="player-role">Mid</div>
-              </div>
-            </div>
-            <div class="player-price">7,910</div>
-          </div>
-        </div>
+        <div id="team-lineup" class="team-lineup" aria-live="polite"></div>
       </div>
 
       <div class="panel card">
@@ -136,7 +92,7 @@
           </div>
           <div class="mini-row">
             <strong>Next round</strong>
-            <span>Today, 18:30 UTC+0</span>
+            <span>Today, 18:30</span>
           </div>
           <div class="mini-row">
             <strong>Rules</strong>
@@ -156,7 +112,7 @@
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <div>
-              <div class="timeline-meta">18:05 UTC+0</div>
+              <div class="timeline-meta">18:05</div>
               <div class="timeline-title">Your team drafted a new support player.</div>
             </div>
           </div>
@@ -164,7 +120,7 @@
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <div>
-              <div class="timeline-meta">17:40 UTC+0</div>
+              <div class="timeline-meta">17:40</div>
               <div class="timeline-title">Mappool was refreshed and published.</div>
             </div>
           </div>
@@ -172,7 +128,7 @@
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <div>
-              <div class="timeline-meta">16:20 UTC+0</div>
+              <div class="timeline-meta">16:20</div>
               <div class="timeline-title">Auction round 2 has started.</div>
             </div>
           </div>
@@ -242,7 +198,90 @@
       }
     }
 
+    function setTeamLineupStatus(text, modifierClass) {
+      const statusEl = document.getElementById('team-lineup-status');
+      if (!statusEl) return;
+
+      statusEl.className = `badge ${modifierClass}`;
+      statusEl.textContent = text;
+    }
+
+    function addEmptyLineupMessage(message) {
+      const lineupEl = document.getElementById('team-lineup');
+      if (!lineupEl) return;
+
+      lineupEl.replaceChildren();
+      const messageEl = document.createElement('p');
+      messageEl.className = 'empty-lineup';
+      messageEl.textContent = message;
+      lineupEl.append(messageEl);
+    }
+
+    function createPlayerRow(player) {
+      const playerRow = document.createElement('div');
+      playerRow.className = 'player-row';
+
+      const playerMain = document.createElement('div');
+      playerMain.className = 'player-main';
+
+      const avatar = document.createElement('img');
+      avatar.className = 'avatar';
+      avatar.src = player.avatar_url || `https://a.ppy.sh/${player.user_id}`;
+      avatar.alt = `${player.username || 'Player'} avatar`;
+
+      const playerDetails = document.createElement('div');
+      const playerName = document.createElement('div');
+      playerName.className = 'player-name';
+      playerName.textContent = player.username || 'Unknown player';
+
+      const playerRole = document.createElement('div');
+      playerRole.className = 'player-role';
+      playerRole.textContent = player.is_captain ? 'Captain' : (player.team_role || 'Player');
+
+      playerDetails.append(playerName, playerRole);
+      playerMain.append(avatar, playerDetails);
+
+      const playerPrice = document.createElement('div');
+      playerPrice.className = 'player-price';
+      playerPrice.textContent = player.auction_price == null
+        ? '—'
+        : Number(player.auction_price).toLocaleString('en-US');
+
+      playerRow.append(playerMain, playerPrice);
+      return playerRow;
+    }
+
+    async function loadTeamLineup() {
+      const lineupEl = document.getElementById('team-lineup');
+      const titleEl = document.getElementById('team-lineup-title');
+      if (!lineupEl) return;
+
+      try {
+        const response = await fetch('/api/user/team');
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data.team) {
+          if (titleEl) titleEl.textContent = 'Team lineup';
+          setTeamLineupStatus('No team', 'badge-muted');
+          addEmptyLineupMessage('You have not been assigned to a team yet.');
+          return;
+        }
+
+        if (titleEl) titleEl.textContent = data.team.name;
+        setTeamLineupStatus(`${data.lineup.length} players`, 'badge-live');
+        lineupEl.replaceChildren(...data.lineup.map(createPlayerRow));
+      } catch (error) {
+        console.error('Could not load team lineup:', error);
+        setTeamLineupStatus('Unavailable', 'badge-warn');
+        addEmptyLineupMessage('Team lineup is unavailable right now.');
+      }
+    }
+
     loadDashboardUser();
+    loadTeamLineup();
   </script>
 </body>
 </html>
