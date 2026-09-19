@@ -385,6 +385,12 @@ footer {
   padding: 0.6rem 0.9rem;
 }
 
+.player-registration .btn.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .player-registration-message {
   margin: 0;
   color: var(--text-soft);
@@ -393,6 +399,11 @@ footer {
 
 .player-registration-message.is-registered {
   color: #bbf7d0;
+  font-weight: 700;
+}
+
+.player-registration-message.is-window-status {
+  color: var(--primary-soft);
   font-weight: 700;
 }
 
@@ -454,6 +465,23 @@ footer {
 
 .stat-card .accent {
   color: var(--primary-soft);
+}
+
+.stat-card .utc-date-time {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.stat-card .utc-date-value {
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.stat-card .utc-time-value {
+  color: var(--text);
+  font-size: clamp(1.25rem, 1.8vw, 1.7rem);
+  line-height: 1.1;
 }
 
 .content-grid {

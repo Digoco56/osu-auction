@@ -66,7 +66,10 @@
 
       <div class="stat-card panel">
         <span class="label">Current UTC date</span>
-        <span id="current-utc-date" class="value">Loading</span>
+        <span id="current-utc-date" class="value utc-date-time">
+          <span id="current-utc-date-value" class="utc-date-value">Loading</span>
+          <span id="current-utc-time-value" class="utc-time-value"></span>
+        </span>
       </div>
     </section>
 
@@ -169,6 +172,16 @@
   </div>
 
   <script>
+    function formatUtcDateTime(isoDate) {
+      if (!isoDate) return 'an unknown time';
+      return `${new Intl.DateTimeFormat('en-GB', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        hourCycle: 'h23',
+        timeZone: 'UTC'
+      }).format(new Date(isoDate))} UTC+0`;
+    }
+
     async function loadDashboardUser() {
       try {
         const response = await fetch('/api/user', { cache: 'no-store' });
@@ -203,6 +216,7 @@
         if (registrationLink && registrationMessage) {
           const registrationStatus = new URLSearchParams(window.location.search).get('registration');
           const isRegisteredPlayer = Boolean(user.isRegisteredPlayer);
+          const registrationWindow = user.registrationWindow || {};
           registrationLink.hidden = isRegisteredPlayer;
           registrationMessage.className = 'player-registration-message';
 
@@ -210,17 +224,30 @@
             registrationMessage.classList.add('is-registered');
             registrationMessage.textContent = 'You are registered as a player.';
           } else {
-            registrationMessage.textContent = 'Player registration requires being member of the tournament Discord server and a BWS rank from 10,000 to 99,999.';
+            const registrationsOpen = registrationWindow.status === 'open';
+            registrationLink.textContent = registrationsOpen ? 'Register as player' : 'Regs not open';
+            registrationLink.classList.toggle('is-disabled', !registrationsOpen);
+            registrationLink.setAttribute('aria-disabled', String(!registrationsOpen));
+            if (registrationsOpen) {
+              registrationLink.href = '/auth/discord';
+              registrationMessage.textContent = 'Player registration requires being member of the tournament Discord server and a BWS rank from 10,000 to 99,999.';
+            } else {
+              registrationLink.removeAttribute('href');
+              registrationMessage.classList.add('is-window-status');
+              registrationMessage.textContent = registrationWindow.status === 'upcoming'
+                ? `Registrations open: ${formatUtcDateTime(registrationWindow.startAt)}.`
+                : 'Registrations closed.';
+            }
             if (user.playerEligibilityStatus === 'bws-ineligible') {
               registrationMessage.classList.add('is-error');
               registrationMessage.textContent = 'You are no longer eligible because your BWS rank is outside the 10,000 to 99,999 range.';
-            } else if (registrationStatus === 'cancelled') {
+            } else if (registrationsOpen && registrationStatus === 'cancelled') {
               registrationMessage.classList.add('is-error');
               registrationMessage.textContent = 'Discord authorization was cancelled. Registration was not completed.';
-            } else if (registrationStatus === 'discord-required') {
+            } else if (registrationsOpen && registrationStatus === 'discord-required') {
               registrationMessage.classList.add('is-error');
               registrationMessage.textContent = 'Join the tournament Discord server before registering as a player.';
-            } else if (registrationStatus === 'bws-ineligible') {
+            } else if (registrationsOpen && registrationStatus === 'bws-ineligible') {
               registrationMessage.classList.add('is-error');
               registrationMessage.textContent = 'Your BWS rank must be between 10,000 and 99,999 to register as a player.';
             } else if (registrationStatus === 'closed') {
@@ -323,14 +350,23 @@
 
     function updateUtcDate() {
       const dateEl = document.getElementById('current-utc-date');
-      if (!dateEl) return;
+      const dateValueEl = document.getElementById('current-utc-date-value');
+      const timeValueEl = document.getElementById('current-utc-time-value');
+      if (!dateEl || !dateValueEl || !timeValueEl) return;
 
-      dateEl.textContent = new Intl.DateTimeFormat('en-GB', {
+      const now = new Date();
+      dateValueEl.textContent = new Intl.DateTimeFormat('en-GB', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
         timeZone: 'UTC'
-      }).format(new Date());
+      }).format(now);
+      timeValueEl.textContent = `${new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+        timeZone: 'UTC'
+      }).format(now)} UTC+0`;
     }
 
     loadDashboardUser();

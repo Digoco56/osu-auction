@@ -207,12 +207,21 @@ async function getRegistrationWindow() {
     const startAt = parseOptionalDate(settings.registration_start_at);
     const endAt = parseOptionalDate(settings.registration_end_at);
     const isConfigured = Boolean(startAt && endAt && startAt < endAt);
+    const now = new Date();
+    const status = !isConfigured
+        ? 'closed'
+        : now < startAt
+            ? 'upcoming'
+            : now <= endAt
+                ? 'open'
+                : 'closed';
 
     return {
         startAt,
         endAt,
         isConfigured,
-        isOpen: isConfigured && new Date() >= startAt && new Date() <= endAt
+        isOpen: status === 'open',
+        status
     };
 }
 
@@ -636,12 +645,18 @@ app.get('/api/user', async (req, res) => {
         'SELECT role, is_registered_player, player_eligibility_status FROM users WHERE user_id = $1',
         [req.session.user.id]
     );
+    const registrationWindow = await getRegistrationWindow();
 
     res.json({
         ...req.session.user,
         role: result.rows[0]?.role || 'player',
         isRegisteredPlayer: Boolean(result.rows[0]?.is_registered_player),
-        playerEligibilityStatus: result.rows[0]?.player_eligibility_status || 'not_registered'
+        playerEligibilityStatus: result.rows[0]?.player_eligibility_status || 'not_registered',
+        registrationWindow: {
+            status: registrationWindow.status,
+            startAt: registrationWindow.startAt?.toISOString() || null,
+            endAt: registrationWindow.endAt?.toISOString() || null
+        }
     });
 });
 
