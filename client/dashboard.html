@@ -15,6 +15,7 @@
       </div>
 
       <nav>
+        <a href="/">Home</a>
         <a href="/players.html">Players</a>
         <a href="#">Teams</a>
         <a href="/mappool.html">Mappool</a>
@@ -201,16 +202,24 @@
 
         if (registrationLink && registrationMessage) {
           const registrationStatus = new URLSearchParams(window.location.search).get('registration');
-          if (user.isRegisteredPlayer) {
-            registrationLink.hidden = true;
+          const isRegisteredPlayer = user.isRegisteredPlayer === true;
+          registrationLink.hidden = isRegisteredPlayer;
+          registrationMessage.className = 'player-registration-message';
+
+          if (isRegisteredPlayer) {
+            registrationMessage.classList.add('is-registered');
             registrationMessage.textContent = 'You are registered as a player.';
           } else {
-            registrationLink.hidden = false;
-            registrationMessage.textContent = 'Player registration requires Discord login and membership in the tournament Discord server.';
+            registrationMessage.textContent = 'Player registration requires Discord, tournament server membership, and a BWS rank from 10,000 to 99,999.';
             if (registrationStatus === 'cancelled') {
+              registrationMessage.classList.add('is-error');
               registrationMessage.textContent = 'Discord authorization was cancelled. Registration was not completed.';
             } else if (registrationStatus === 'discord-required') {
+              registrationMessage.classList.add('is-error');
               registrationMessage.textContent = 'Join the tournament Discord server before registering as a player.';
+            } else if (registrationStatus === 'bws-ineligible') {
+              registrationMessage.classList.add('is-error');
+              registrationMessage.textContent = 'Your BWS rank must be between 10,000 and 99,999 to register as a player.';
             }
           }
         }

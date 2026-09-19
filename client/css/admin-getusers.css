@@ -20,6 +20,13 @@ main {
     text-align: left;
 }
 
+.admin-home-link {
+    display: block;
+    width: fit-content;
+    max-width: 1180px;
+    margin: 0 auto 1rem;
+}
+
 .admin-nav-button {
     background: transparent;
     color: var(--admin-muted);

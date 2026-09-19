@@ -14,6 +14,7 @@
         <span>osu! Auction</span>
       </div>
       <nav>
+        <a href="/">Home</a>
         <a href="/players.html">Players</a>
         <a href="#">Teams</a>
         <a href="/mappool.html">Mappool</a>
@@ -48,6 +49,30 @@
   </div>
 
   <script>
+    function formatRank(rank) {
+      if (rank == null || Number.isNaN(Number(rank))) return 'Unavailable';
+      return `#${Math.round(Number(rank)).toLocaleString('en-US')}`;
+    }
+
+    function countryFlag(countryCode) {
+      const normalizedCode = String(countryCode || '').toUpperCase();
+      if (!/^[A-Z]{2}$/.test(normalizedCode)) return '🏳️';
+      return String.fromCodePoint(...[...normalizedCode].map(letter => 127397 + letter.charCodeAt(0)));
+    }
+
+    function createPlayerMetaItem(label, value) {
+      const item = document.createElement('div');
+      item.className = 'player-meta-item';
+      const itemLabel = document.createElement('span');
+      itemLabel.className = 'player-meta-label';
+      itemLabel.textContent = label;
+      const itemValue = document.createElement('span');
+      itemValue.className = 'player-meta-value';
+      itemValue.textContent = value;
+      item.append(itemLabel, itemValue);
+      return item;
+    }
+
     function createPlayerCard(player) {
       const card = document.createElement('article');
       card.className = 'player-directory-card panel';
@@ -59,12 +84,23 @@
 
       const details = document.createElement('div');
       const name = document.createElement('h2');
-      name.textContent = player.username;
+      name.textContent = `${countryFlag(player.profile_country_code)} ${player.username}`;
       const role = document.createElement('p');
       role.textContent = player.role;
       const team = document.createElement('p');
       team.textContent = player.team_name || 'No team';
-      details.append(name, role, team);
+
+      const metadata = document.createElement('div');
+      metadata.className = 'player-meta';
+      metadata.append(
+        createPlayerMetaItem('Global rank', formatRank(player.bws_global_rank)),
+        createPlayerMetaItem('Badges', player.bws_badge_count ?? 'Unavailable')
+      );
+      if (Number(player.bws_badge_count) > 0) {
+        metadata.append(createPlayerMetaItem('Post-BWS rank', formatRank(player.bws_rank)));
+      }
+
+      details.append(name, role, team, metadata);
       card.append(avatar, details);
       return card;
     }

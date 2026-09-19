@@ -14,6 +14,9 @@ const GOOGLE_SHEET_ATTEMPTS = 3;
 const AA_COLUMN_INDEX = 26;
 const AB_COLUMN_INDEX = 27;
 const AC_COLUMN_INDEX = 28;
+const BWS_BADGE_CUTOFF = new Date('2025-04-01T00:00:00Z');
+const BWS_MIN_RANK = 10000;
+const BWS_MAX_RANK = 99999;
 let osuApiToken = null;
 let osuApiTokenExpiresAt = 0;
 
@@ -27,13 +30,23 @@ async function initializeDatabase() {
             discord_id TEXT,
             discord_username TEXT,
             is_registered_player BOOLEAN NOT NULL DEFAULT FALSE,
-            registered_at TIMESTAMPTZ
+            registered_at TIMESTAMPTZ,
+            bws_rank NUMERIC,
+            bws_global_rank INTEGER,
+            bws_badge_count INTEGER,
+            bws_calculated_at TIMESTAMPTZ,
+            profile_country_code TEXT
         );
         ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_id TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_username TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_registered_player BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS registered_at TIMESTAMPTZ;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_rank NUMERIC;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_global_rank INTEGER;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_badge_count INTEGER;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_calculated_at TIMESTAMPTZ;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_country_code TEXT;
         CREATE UNIQUE INDEX IF NOT EXISTS users_discord_id_unique
             ON users (discord_id)
             WHERE discord_id IS NOT NULL;
@@ -156,6 +169,32 @@ function discordConfigurationIsComplete() {
         && process.env.DISCORD_REDIRECT_URI
         && process.env.DISCORD_GUILD_ID
     );
+}
+
+async function calculateBwsEligibility(userId) {
+    const token = await getOsuApiToken();
+    const response = await axios.get(`https://osu.ppy.sh/api/v2/users/${userId}/osu`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { key: 'id' },
+        timeout: 15000
+    });
+    const globalRank = response.data.statistics?.global_rank;
+    if (!Number.isInteger(globalRank) || globalRank < 1) {
+        return { eligible: false, reason: 'unranked' };
+    }
+
+    const badgeCount = (response.data.badges || []).filter(badge => (
+        badge.awarded_at && new Date(badge.awarded_at) >= BWS_BADGE_CUTOFF
+    )).length;
+    const bwsRank = globalRank ** (0.9937 ** (badgeCount ** 2));
+
+    return {
+        eligible: bwsRank >= BWS_MIN_RANK && bwsRank <= BWS_MAX_RANK,
+        globalRank,
+        badgeCount,
+        bwsRank,
+        countryCode: response.data.country_code || response.data.country?.code || null
+    };
 }
 
 async function isMappoolPublic() {
@@ -378,6 +417,13 @@ app.get('/auth/discord/callback', async (req, res) => {
             return res.redirect('/dashboard.html?registration=discord-required');
         }
 
+        const bwsEligibility = await calculateBwsEligibility(sessionUser.id);
+        if (!bwsEligibility.eligible) {
+            delete req.session.discordOAuthState;
+            await saveSession(req);
+            return res.redirect('/dashboard.html?registration=bws-ineligible');
+        }
+
         const discordUser = discordUserResponse.data;
         const existingDiscordLink = await db.query(
             'SELECT user_id FROM users WHERE discord_id = $1 AND user_id <> $2',
@@ -390,22 +436,32 @@ app.get('/auth/discord/callback', async (req, res) => {
         await db.query(`
             INSERT INTO users (
                 user_id, username, avatar_url, discord_id, discord_username,
-                is_registered_player, registered_at
+                is_registered_player, registered_at, bws_rank, bws_global_rank,
+                bws_badge_count, bws_calculated_at, profile_country_code
             )
-            VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
+            VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), $6, $7, $8, NOW(), $9)
             ON CONFLICT (user_id) DO UPDATE SET
                 username = EXCLUDED.username,
                 avatar_url = EXCLUDED.avatar_url,
                 discord_id = EXCLUDED.discord_id,
                 discord_username = EXCLUDED.discord_username,
                 is_registered_player = TRUE,
-                registered_at = COALESCE(users.registered_at, NOW())
+                registered_at = COALESCE(users.registered_at, NOW()),
+                bws_rank = EXCLUDED.bws_rank,
+                bws_global_rank = EXCLUDED.bws_global_rank,
+                bws_badge_count = EXCLUDED.bws_badge_count,
+                bws_calculated_at = NOW(),
+                profile_country_code = EXCLUDED.profile_country_code
         `, [
             sessionUser.id,
             sessionUser.username,
             sessionUser.avatar_url,
             discordUser.id,
-            discordUser.global_name || discordUser.username
+            discordUser.global_name || discordUser.username,
+            bwsEligibility.bwsRank,
+            bwsEligibility.globalRank,
+            bwsEligibility.badgeCount,
+            bwsEligibility.countryCode
         ]);
 
         delete req.session.discordOAuthState;
@@ -431,7 +487,7 @@ app.get('/api/user', async (req, res) => {
     res.json({
         ...req.session.user,
         role: result.rows[0]?.role || 'player',
-        isRegisteredPlayer: result.rows[0]?.is_registered_player || false
+        isRegisteredPlayer: Boolean(result.rows[0]?.is_registered_player)
     });
 });
 
@@ -490,7 +546,16 @@ app.get('/api/players', async (req, res) => {
     }
 
     const players = await db.query(`
-        SELECT u.user_id, u.username, u.avatar_url, u.role, t.name AS team_name
+        SELECT
+            u.user_id,
+            u.username,
+            u.avatar_url,
+            u.role,
+            u.profile_country_code,
+            u.bws_global_rank,
+            u.bws_badge_count,
+            u.bws_rank,
+            t.name AS team_name
         FROM users u
         LEFT JOIN team_members tm ON tm.user_id = u.user_id
         LEFT JOIN teams t ON t.team_id = tm.team_id
