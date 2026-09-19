@@ -17,8 +17,12 @@ const AC_COLUMN_INDEX = 28;
 const BWS_BADGE_CUTOFF = new Date('2025-04-01T00:00:00Z');
 const BWS_MIN_RANK = 10000;
 const BWS_MAX_RANK = 99999;
+const BWS_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const REGISTRATION_START_AT_SEED = process.env.REGISTRATION_START_AT || null;
+const REGISTRATION_END_AT_SEED = process.env.REGISTRATION_END_AT || null;
 let osuApiToken = null;
 let osuApiTokenExpiresAt = 0;
+let playerEligibilityRefreshInProgress = false;
 
 async function initializeDatabase() {
     await db.query(`
@@ -35,7 +39,8 @@ async function initializeDatabase() {
             bws_global_rank INTEGER,
             bws_badge_count INTEGER,
             bws_calculated_at TIMESTAMPTZ,
-            profile_country_code TEXT
+            profile_country_code TEXT,
+            player_eligibility_status TEXT NOT NULL DEFAULT 'not_registered'
         );
         ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_id TEXT;
@@ -47,6 +52,11 @@ async function initializeDatabase() {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_badge_count INTEGER;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_calculated_at TIMESTAMPTZ;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_country_code TEXT;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS player_eligibility_status TEXT NOT NULL DEFAULT 'not_registered';
+                UPDATE users
+                SET player_eligibility_status = 'registered'
+                WHERE is_registered_player = TRUE
+                    AND player_eligibility_status = 'not_registered';
         CREATE UNIQUE INDEX IF NOT EXISTS users_discord_id_unique
             ON users (discord_id)
             WHERE discord_id IS NOT NULL;
@@ -134,10 +144,19 @@ async function initializeDatabase() {
             setting_key TEXT PRIMARY KEY,
             boolean_value BOOLEAN NOT NULL DEFAULT TRUE
         );
+        ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS text_value TEXT;
         INSERT INTO site_settings (setting_key, boolean_value)
         VALUES ('mappool_public', TRUE)
         ON CONFLICT (setting_key) DO NOTHING;
     `);
+
+    await db.query(`
+        INSERT INTO site_settings (setting_key, boolean_value, text_value)
+        VALUES
+            ('registration_start_at', TRUE, $1),
+            ('registration_end_at', TRUE, $2)
+        ON CONFLICT (setting_key) DO NOTHING;
+    `, [REGISTRATION_START_AT_SEED, REGISTRATION_END_AT_SEED]);
 }
 
 // Configure session middleware
@@ -171,6 +190,35 @@ function discordConfigurationIsComplete() {
     );
 }
 
+function parseOptionalDate(value) {
+    if (!value) return null;
+    const parsedDate = new Date(value);
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
+async function getRegistrationWindow() {
+    const result = await db.query(`
+        SELECT setting_key, text_value
+        FROM site_settings
+        WHERE setting_key IN ('registration_start_at', 'registration_end_at')
+    `);
+    const settings = Object.fromEntries(result.rows.map(row => [row.setting_key, row.text_value]));
+    const startAt = parseOptionalDate(settings.registration_start_at);
+    const endAt = parseOptionalDate(settings.registration_end_at);
+    const isConfigured = Boolean(startAt && endAt && startAt < endAt);
+
+    return {
+        startAt,
+        endAt,
+        isConfigured,
+        isOpen: isConfigured && new Date() >= startAt && new Date() <= endAt
+    };
+}
+
+async function isRegistrationWindowOpen() {
+    return (await getRegistrationWindow()).isOpen;
+}
+
 async function calculateBwsEligibility(userId) {
     const token = await getOsuApiToken();
     const response = await axios.get(`https://osu.ppy.sh/api/v2/users/${userId}/osu`, {
@@ -195,6 +243,90 @@ async function calculateBwsEligibility(userId) {
         bwsRank,
         countryCode: response.data.country_code || response.data.country?.code || null
     };
+}
+
+async function saveBwsEvaluation(userId, evaluation, eligibilityStatus, queryable = db) {
+    await queryable.query(`
+        UPDATE users
+        SET bws_rank = $2,
+            bws_global_rank = $3,
+            bws_badge_count = $4,
+            bws_calculated_at = NOW(),
+            profile_country_code = $5,
+            player_eligibility_status = $6
+        WHERE user_id = $1
+    `, [
+        userId,
+        evaluation.bwsRank ?? null,
+        evaluation.globalRank ?? null,
+        evaluation.badgeCount ?? 0,
+        evaluation.countryCode ?? null,
+        eligibilityStatus
+    ]);
+}
+
+async function refreshRegisteredPlayerEligibility(userId, force = false) {
+    if (!(await isRegistrationWindowOpen())) return;
+
+    const userResult = await db.query(`
+        SELECT is_registered_player, bws_calculated_at
+        FROM users
+        WHERE user_id = $1
+    `, [userId]);
+    const player = userResult.rows[0];
+    if (!player?.is_registered_player) return;
+
+    const lastCalculation = player.bws_calculated_at && new Date(player.bws_calculated_at);
+    if (!force && lastCalculation && Date.now() - lastCalculation.getTime() < BWS_REFRESH_INTERVAL_MS) {
+        return;
+    }
+
+    const evaluation = await calculateBwsEligibility(userId);
+    if (evaluation.eligible) {
+        await saveBwsEvaluation(userId, evaluation, 'registered');
+        return;
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        await saveBwsEvaluation(userId, evaluation, 'bws-ineligible', client);
+        await client.query(`
+            UPDATE users
+            SET is_registered_player = FALSE
+            WHERE user_id = $1
+        `, [userId]);
+        await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function refreshAllPlayerEligibilities() {
+    if (!(await isRegistrationWindowOpen()) || playerEligibilityRefreshInProgress) return;
+
+    playerEligibilityRefreshInProgress = true;
+    try {
+        const result = await db.query(`
+            SELECT user_id
+            FROM users
+            WHERE is_registered_player = TRUE
+        `);
+        for (const { user_id: userId } of result.rows) {
+            try {
+                await refreshRegisteredPlayerEligibility(userId, true);
+            } catch (error) {
+                console.error(`Could not refresh BWS eligibility for user ${userId}:`, error.message);
+            }
+            await new Promise(resolve => setTimeout(resolve, 1100));
+        }
+    } finally {
+        playerEligibilityRefreshInProgress = false;
+    }
 }
 
 async function isMappoolPublic() {
@@ -358,6 +490,9 @@ app.get('/auth/discord', async (req, res) => {
     if (!req.session.user) {
         return res.redirect('/');
     }
+    if (!(await isRegistrationWindowOpen())) {
+        return res.redirect('/dashboard.html?registration=closed');
+    }
     if (!discordConfigurationIsComplete()) {
         return res.status(500).send('Discord login is not configured.');
     }
@@ -387,6 +522,12 @@ app.get('/auth/discord/callback', async (req, res) => {
 
     if (!code || !sessionUser || req.query.state !== req.session.discordOAuthState) {
         return res.status(400).send('Invalid Discord authorization response.');
+    }
+
+    if (!(await isRegistrationWindowOpen())) {
+        delete req.session.discordOAuthState;
+        await saveSession(req);
+        return res.redirect('/dashboard.html?registration=closed');
     }
 
     try {
@@ -419,6 +560,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 
         const bwsEligibility = await calculateBwsEligibility(sessionUser.id);
         if (!bwsEligibility.eligible) {
+            await saveBwsEvaluation(sessionUser.id, bwsEligibility, 'bws-ineligible');
             delete req.session.discordOAuthState;
             await saveSession(req);
             return res.redirect('/dashboard.html?registration=bws-ineligible');
@@ -437,9 +579,10 @@ app.get('/auth/discord/callback', async (req, res) => {
             INSERT INTO users (
                 user_id, username, avatar_url, discord_id, discord_username,
                 is_registered_player, registered_at, bws_rank, bws_global_rank,
-                bws_badge_count, bws_calculated_at, profile_country_code
+                bws_badge_count, bws_calculated_at, profile_country_code,
+                player_eligibility_status
             )
-            VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), $6, $7, $8, NOW(), $9)
+            VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), $6, $7, $8, NOW(), $9, 'registered')
             ON CONFLICT (user_id) DO UPDATE SET
                 username = EXCLUDED.username,
                 avatar_url = EXCLUDED.avatar_url,
@@ -451,7 +594,8 @@ app.get('/auth/discord/callback', async (req, res) => {
                 bws_global_rank = EXCLUDED.bws_global_rank,
                 bws_badge_count = EXCLUDED.bws_badge_count,
                 bws_calculated_at = NOW(),
-                profile_country_code = EXCLUDED.profile_country_code
+                profile_country_code = EXCLUDED.profile_country_code,
+                player_eligibility_status = 'registered'
         `, [
             sessionUser.id,
             sessionUser.username,
@@ -481,15 +625,22 @@ app.get('/api/user', async (req, res) => {
 
     res.set('Cache-Control', 'no-store');
 
+    try {
+        await refreshRegisteredPlayerEligibility(req.session.user.id);
+    } catch (error) {
+        console.error(`Could not refresh BWS eligibility for current user:`, error.message);
+    }
+
     const result = await db.query(
-        'SELECT role, is_registered_player FROM users WHERE user_id = $1',
+        'SELECT role, is_registered_player, player_eligibility_status FROM users WHERE user_id = $1',
         [req.session.user.id]
     );
 
     res.json({
         ...req.session.user,
         role: result.rows[0]?.role || 'player',
-        isRegisteredPlayer: Boolean(result.rows[0]?.is_registered_player)
+        isRegisteredPlayer: Boolean(result.rows[0]?.is_registered_player),
+        playerEligibilityStatus: result.rows[0]?.player_eligibility_status || 'not_registered'
     });
 });
 
@@ -588,6 +739,42 @@ async function requireAdmin(req, res, next) {
     if (result.rows[0]?.role !== 'admin') return res.status(403).send('Access denied');
     next();
 }
+
+app.get('/admin/registration-window', requireAdmin, async (req, res) => {
+    const window = await getRegistrationWindow();
+    res.json({
+        startAt: window.startAt?.toISOString() || null,
+        endAt: window.endAt?.toISOString() || null,
+        isConfigured: window.isConfigured,
+        isOpen: window.isOpen
+    });
+});
+
+app.post('/admin/registration-window', requireAdmin, express.json(), async (req, res) => {
+    const startAt = parseOptionalDate(req.body.startAt);
+    const endAt = parseOptionalDate(req.body.endAt);
+
+    if (!startAt || !endAt || startAt >= endAt) {
+        return res.status(400).json({ error: 'Opening time must be before closing time.' });
+    }
+
+    await db.query(`
+        INSERT INTO site_settings (setting_key, boolean_value, text_value)
+        VALUES
+            ('registration_start_at', TRUE, $1),
+            ('registration_end_at', TRUE, $2)
+        ON CONFLICT (setting_key) DO UPDATE
+        SET text_value = EXCLUDED.text_value
+    `, [startAt.toISOString(), endAt.toISOString()]);
+
+    const window = await getRegistrationWindow();
+    refreshAllPlayerEligibilities();
+    res.json({
+        startAt: window.startAt.toISOString(),
+        endAt: window.endAt.toISOString(),
+        isOpen: window.isOpen
+    });
+});
 
 async function readGoogleSheet(sheetName) {
     if (!process.env.GOOGLE_APPS_SCRIPT_URL || !process.env.GOOGLE_APPS_SCRIPT_TOKEN) {
@@ -1059,6 +1246,8 @@ app.post('/admin/set-user-team', requireAdmin, express.json(), async (req, res) 
 const PORT = process.env.PORT || 3000;
 initializeDatabase()
     .then(() => {
+        refreshAllPlayerEligibilities();
+        setInterval(refreshAllPlayerEligibilities, BWS_REFRESH_INTERVAL_MS);
         app.listen(PORT, () => {
             console.log(`Server running at http://localhost:${PORT}`);
         });

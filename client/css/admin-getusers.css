@@ -79,7 +79,8 @@ main {
 }
 
 .user-filters,
-.add-sheet-row {
+.add-sheet-row,
+.registration-window-fields {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -88,7 +89,8 @@ main {
 }
 
 .user-filters label,
-.add-sheet-row label {
+.add-sheet-row label,
+.registration-window-fields label {
     color: var(--admin-muted);
     font-size: 0.9rem;
 }
@@ -116,6 +118,13 @@ textarea {
 #user-filter-value {
     min-width: 220px;
     flex: 1 1 220px;
+}
+
+.registration-window-fields {
+    display: grid;
+    grid-template-columns: auto minmax(220px, 1fr);
+    max-width: 560px;
+    margin-bottom: 0.25rem;
 }
 
 .filter-result {
