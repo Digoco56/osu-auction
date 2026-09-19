@@ -469,18 +469,21 @@ footer {
 
 .stat-card .utc-date-time {
   display: grid;
-  gap: 0.15rem;
+  grid-template-rows: 1rem 1fr;
+  gap: 0.2rem;
+  min-height: 2.6rem;
 }
 
 .stat-card .utc-date-value {
   color: var(--text-soft);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 700;
+  line-height: 1rem;
 }
 
 .stat-card .utc-time-value {
   color: var(--text);
-  font-size: clamp(1.25rem, 1.8vw, 1.7rem);
+  font-size: inherit;
   line-height: 1.1;
 }
 

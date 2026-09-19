@@ -21,11 +21,23 @@ main {
     text-align: left;
 }
 
-.admin-home-link {
-    display: block;
-    width: fit-content;
+.admin-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     max-width: 1180px;
-    margin: 0 auto 1rem;
+    margin: 0 auto;
+}
+
+.admin-page-header h1 {
+    margin-bottom: 1rem;
+}
+
+.admin-home-link {
+    margin: 0 0 1rem;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.85rem;
 }
 
 .admin-nav-button {

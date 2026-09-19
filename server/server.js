@@ -37,7 +37,7 @@ async function initializeDatabase() {
             is_registered_player BOOLEAN NOT NULL DEFAULT FALSE,
             registered_at TIMESTAMPTZ,
             bws_rank NUMERIC,
-            bws_global_rank INTEGER,
+            global_rank INTEGER,
             bws_badge_count INTEGER,
             bws_calculated_at TIMESTAMPTZ,
             profile_country_code TEXT,
@@ -49,7 +49,19 @@ async function initializeDatabase() {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_registered_player BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS registered_at TIMESTAMPTZ;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_rank NUMERIC;
-        ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_global_rank INTEGER;
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'bws_global_rank'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'global_rank'
+            ) THEN
+                ALTER TABLE users RENAME COLUMN bws_global_rank TO global_rank;
+            END IF;
+        END $$;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS global_rank INTEGER;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_badge_count INTEGER;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_calculated_at TIMESTAMPTZ;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_country_code TEXT;
@@ -259,7 +271,7 @@ async function saveBwsEvaluation(userId, evaluation, eligibilityStatus, queryabl
     await queryable.query(`
         UPDATE users
         SET bws_rank = $2,
-            bws_global_rank = $3,
+            global_rank = $3,
             bws_badge_count = $4,
             bws_calculated_at = NOW(),
             profile_country_code = $5,
@@ -588,7 +600,7 @@ app.get('/auth/discord/callback', async (req, res) => {
         await db.query(`
             INSERT INTO users (
                 user_id, username, avatar_url, discord_id, discord_username,
-                is_registered_player, registered_at, bws_rank, bws_global_rank,
+                is_registered_player, registered_at, bws_rank, global_rank,
                 bws_badge_count, bws_calculated_at, profile_country_code,
                 player_eligibility_status
             )
@@ -601,7 +613,7 @@ app.get('/auth/discord/callback', async (req, res) => {
                 is_registered_player = TRUE,
                 registered_at = COALESCE(users.registered_at, NOW()),
                 bws_rank = EXCLUDED.bws_rank,
-                bws_global_rank = EXCLUDED.bws_global_rank,
+                global_rank = EXCLUDED.global_rank,
                 bws_badge_count = EXCLUDED.bws_badge_count,
                 bws_calculated_at = NOW(),
                 profile_country_code = EXCLUDED.profile_country_code,
@@ -721,7 +733,7 @@ app.get('/api/players', async (req, res) => {
             u.avatar_url,
             u.role,
             u.profile_country_code,
-            u.bws_global_rank,
+            u.global_rank,
             u.bws_badge_count,
             u.bws_rank,
             t.name AS team_name
@@ -796,6 +808,21 @@ app.post('/admin/registration-window', requireAdmin, express.json(), async (req,
             ? nextPlayerEligibilityRefreshAt?.toISOString() || null
             : null
     });
+});
+
+app.post('/admin/refresh-player-eligibility', requireAdmin, async (req, res) => {
+    if (!(await isRegistrationWindowOpen())) {
+        return res.status(409).json({
+            error: 'Player data can only be refreshed while registrations are open.'
+        });
+    }
+
+    if (playerEligibilityRefreshInProgress) {
+        return res.status(409).json({ error: 'A player data refresh is already running.' });
+    }
+
+    await refreshAllPlayerEligibilities();
+    res.json({ refreshed: true });
 });
 
 async function readGoogleSheet(sheetName) {

@@ -9,8 +9,10 @@
 </head>
 
 <body class="admin-page">
-    <h1>Admin Panel</h1>
-    <a class="button admin-home-link" href="/">Home</a>
+    <header class="admin-page-header">
+        <h1>Admin Panel</h1>
+        <a class="button admin-home-link" href="/">Home</a>
+    </header>
     <nav class="admin-nav" aria-label="Admin sections">
         <button class="admin-nav-button is-active" type="button" data-panel="users-panel">Users</button>
         <button class="admin-nav-button" type="button" data-panel="registration-panel">Registration</button>
@@ -80,6 +82,7 @@
                 <input id="registration-end-at" type="datetime-local" required>
             </div>
             <button class="button" id="save-registration-window-button" type="button">Save registration window</button>
+            <button class="button secondary-button" id="refresh-player-eligibility-button" type="button">Refresh player data now</button>
             <p class="status-message" id="registration-window-status" role="status"></p>
             <p class="registration-next-update" id="registration-next-update"></p>
         </section>

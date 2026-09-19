@@ -225,7 +225,7 @@
             registrationMessage.textContent = 'You are registered as a player.';
           } else {
             const registrationsOpen = registrationWindow.status === 'open';
-            registrationLink.textContent = registrationsOpen ? 'Register as player' : 'Regs not open';
+            registrationLink.textContent = registrationsOpen ? 'Register as player' : 'Regs not yet open';
             registrationLink.classList.toggle('is-disabled', !registrationsOpen);
             registrationLink.setAttribute('aria-disabled', String(!registrationsOpen));
             if (registrationsOpen) {

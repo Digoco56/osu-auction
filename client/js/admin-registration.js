@@ -1,6 +1,7 @@
 const registrationStartInput = document.getElementById('registration-start-at');
 const registrationEndInput = document.getElementById('registration-end-at');
 const registrationSaveButton = document.getElementById('save-registration-window-button');
+const refreshPlayerEligibilityButton = document.getElementById('refresh-player-eligibility-button');
 const registrationStatusMessage = document.getElementById('registration-window-status');
 const nextUpdateMessage = document.getElementById('registration-next-update');
 
@@ -76,6 +77,24 @@ registrationSaveButton.addEventListener('click', async () => {
     setRegistrationStatus(error.message, 'error');
   } finally {
     registrationSaveButton.disabled = false;
+  }
+});
+
+refreshPlayerEligibilityButton.addEventListener('click', async () => {
+  refreshPlayerEligibilityButton.disabled = true;
+  setRegistrationStatus('Refreshing player data from osu!', 'updating');
+  try {
+    const response = await fetch('/admin/refresh-player-eligibility', { method: 'POST' });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(result?.error || 'Could not refresh player data.');
+
+    setRegistrationStatus('Player data refreshed.', 'success');
+    await loadRegistrationWindow();
+  } catch (error) {
+    console.error('Error refreshing player data:', error);
+    setRegistrationStatus(error.message, 'error');
+  } finally {
+    refreshPlayerEligibilityButton.disabled = false;
   }
 });
 

@@ -106,7 +106,7 @@
 
       const metadata = document.createElement('div');
       metadata.className = 'player-meta';
-      const globalRank = createPlayerMetaItem('Global rank', formatRank(player.bws_global_rank));
+      const globalRank = createPlayerMetaItem('Global rank', formatRank(player.global_rank));
       globalRank.classList.add('player-meta-global-rank');
       const badgeCount = createPlayerMetaItem('Badges', player.bws_badge_count ?? 'Unavailable');
       metadata.append(
