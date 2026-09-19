@@ -54,10 +54,11 @@
       return `#${Math.round(Number(rank)).toLocaleString('en-US')}`;
     }
 
-    function countryFlag(countryCode) {
+    function countryFlagUrl(countryCode) {
       const normalizedCode = String(countryCode || '').toUpperCase();
-      if (!/^[A-Z]{2}$/.test(normalizedCode)) return '🏳️';
-      return String.fromCodePoint(...[...normalizedCode].map(letter => 127397 + letter.charCodeAt(0)));
+      return /^[A-Z]{2}$/.test(normalizedCode)
+        ? `https://osuflags.omkserver.nl/${normalizedCode}-32.png`
+        : '';
     }
 
     function createPlayerMetaItem(label, value) {
@@ -83,8 +84,19 @@
       avatar.alt = `${player.username} avatar`;
 
       const details = document.createElement('div');
+      const nameRow = document.createElement('div');
+      nameRow.className = 'player-name-row';
+      const flagUrl = countryFlagUrl(player.profile_country_code);
+      if (flagUrl) {
+        const flag = document.createElement('img');
+        flag.className = 'country-flag';
+        flag.src = flagUrl;
+        flag.alt = player.profile_country_code;
+        nameRow.append(flag);
+      }
       const name = document.createElement('h2');
-      name.textContent = `${countryFlag(player.profile_country_code)} ${player.username}`;
+      name.textContent = player.username;
+      nameRow.append(name);
       const role = document.createElement('p');
       role.textContent = player.role;
       const team = document.createElement('p');
@@ -100,7 +112,7 @@
         metadata.append(createPlayerMetaItem('Post-BWS rank', formatRank(player.bws_rank)));
       }
 
-      details.append(name, role, team, metadata);
+      details.append(nameRow, role, team, metadata);
       card.append(avatar, details);
       return card;
     }

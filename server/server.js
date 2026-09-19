@@ -479,6 +479,8 @@ app.get('/api/user', async (req, res) => {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
+    res.set('Cache-Control', 'no-store');
+
     const result = await db.query(
         'SELECT role, is_registered_player FROM users WHERE user_id = $1',
         [req.session.user.id]
