@@ -9,17 +9,17 @@
   width: 100%;
   box-sizing: border-box;
   overflow-x: auto;
-  background: #142333;
-  border: 1px solid rgba(102, 192, 244, 0.24);
-  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 8px;
   padding: 1rem 1.1rem 1.15rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 18px 38px var(--shadow);
   text-align: center;
 }
 
 .mappool-section h2 {
   margin: 0 0 0.8rem;
-  color: #66c0f4;
+  color: var(--primary-soft);
   font-size: 1.35rem;
 }
 
@@ -40,7 +40,7 @@
 }
 
 .mappool-section th {
-  color: #b9d8ec;
+  color: var(--text-soft);
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -59,15 +59,15 @@
 }
 
 .mappool-section tbody tr td {
-  background: rgba(34, 52, 72, 0.72);
+  background: rgba(17, 24, 39, 0.72);
 }
 
 .mappool-section tbody tr:nth-child(even) td {
-  background: rgba(45, 67, 90, 0.72);
+  background: rgba(24, 34, 53, 0.72);
 }
 
 .mappool-section tbody tr:hover td {
-  background: rgba(102, 192, 244, 0.16);
+  background: rgba(124, 156, 255, 0.16);
 }
 
 .mappool-section tbody tr td:first-child {

@@ -55,18 +55,18 @@
       </div>
 
       <div class="stat-card panel">
-        <span class="label">Team rank</span>
-        <span class="value">#4</span>
-      </div>
-
-      <div class="stat-card panel">
         <span class="label">Players in team</span>
-        <span class="value">7</span>
+        <span id="team-player-count" class="value">—</span>
       </div>
 
       <div class="stat-card panel">
         <span class="label">Next match</span>
-        <span class="value">05:30</span>
+        <span class="value">TBD</span>
+      </div>
+
+      <div class="stat-card panel">
+        <span class="label">Current UTC date</span>
+        <span id="current-utc-date" class="value">Loading</span>
       </div>
     </section>
 
@@ -291,6 +291,7 @@
     async function loadTeamLineup() {
       const lineupEl = document.getElementById('team-lineup');
       const titleEl = document.getElementById('team-lineup-title');
+      const playerCountEl = document.getElementById('team-player-count');
       if (!lineupEl) return;
 
       try {
@@ -302,23 +303,40 @@
         const data = await response.json();
         if (!data.team) {
           if (titleEl) titleEl.textContent = 'Team lineup';
+          if (playerCountEl) playerCountEl.textContent = '0';
           setTeamLineupStatus('No team', 'badge-muted');
           addEmptyLineupMessage('You have not been assigned to a team yet.');
           return;
         }
 
         if (titleEl) titleEl.textContent = data.team.name;
+        if (playerCountEl) playerCountEl.textContent = String(data.lineup.length);
         setTeamLineupStatus(`${data.lineup.length} players`, 'badge-live');
         lineupEl.replaceChildren(...data.lineup.map(createPlayerRow));
       } catch (error) {
         console.error('Could not load team lineup:', error);
+        if (playerCountEl) playerCountEl.textContent = '—';
         setTeamLineupStatus('Unavailable', 'badge-warn');
         addEmptyLineupMessage('Team lineup is unavailable right now.');
       }
     }
 
+    function updateUtcDate() {
+      const dateEl = document.getElementById('current-utc-date');
+      if (!dateEl) return;
+
+      dateEl.textContent = new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC'
+      }).format(new Date());
+    }
+
     loadDashboardUser();
     loadTeamLineup();
+    updateUtcDate();
+    setInterval(updateUtcDate, 60 * 1000);
   </script>
 </body>
 </html>

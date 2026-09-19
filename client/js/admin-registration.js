@@ -2,6 +2,7 @@ const registrationStartInput = document.getElementById('registration-start-at');
 const registrationEndInput = document.getElementById('registration-end-at');
 const registrationSaveButton = document.getElementById('save-registration-window-button');
 const registrationStatusMessage = document.getElementById('registration-window-status');
+const nextUpdateMessage = document.getElementById('registration-next-update');
 
 function toLocalDateTimeInputValue(isoDate) {
   if (!isoDate) return '';
@@ -13,6 +14,20 @@ function setRegistrationStatus(message, statusClass = '') {
   registrationStatusMessage.textContent = message;
 }
 
+function setNextUpdateMessage(nextUpdateAt) {
+  if (!nextUpdateAt) {
+    nextUpdateMessage.textContent = 'Player data updates are paused while registrations are closed.';
+    return;
+  }
+
+  const formattedDate = new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC'
+  }).format(new Date(nextUpdateAt));
+  nextUpdateMessage.textContent = `Next player data update: ${formattedDate} UTC+0`;
+}
+
 async function loadRegistrationWindow() {
   try {
     const response = await fetch('/admin/registration-window');
@@ -21,6 +36,7 @@ async function loadRegistrationWindow() {
     const window = await response.json();
     registrationStartInput.value = toLocalDateTimeInputValue(window.startAt);
     registrationEndInput.value = toLocalDateTimeInputValue(window.endAt);
+    setNextUpdateMessage(window.nextPlayerEligibilityRefreshAt);
     setRegistrationStatus(
       window.isOpen ? 'Registrations are currently open.' : 'Registrations are currently closed.',
       window.isOpen ? 'success' : 'warning'
@@ -53,6 +69,7 @@ registrationSaveButton.addEventListener('click', async () => {
 
     registrationStartInput.value = toLocalDateTimeInputValue(result.startAt);
     registrationEndInput.value = toLocalDateTimeInputValue(result.endAt);
+    setNextUpdateMessage(result.nextPlayerEligibilityRefreshAt);
     setRegistrationStatus(result.isOpen ? 'Registrations are currently open.' : 'Registration window saved.', 'success');
   } catch (error) {
     console.error('Error saving registration window:', error);

@@ -1,15 +1,16 @@
 :root {
-    --admin-border: rgba(102, 192, 244, 0.22);
-    --admin-muted: #a9b8c6;
-    --admin-surface: #223448;
+    --admin-border: var(--line);
+    --admin-muted: var(--text-soft);
+    --admin-surface: rgba(15, 23, 42, 0.72);
 }
-
 main {
     max-width: 1180px;
     margin: 0 auto;
     text-align: left;
 }
-
+.admin-page {
+    min-height: 100vh;
+}
 .admin-nav {
     display: flex;
     flex-wrap: wrap;
@@ -39,15 +40,15 @@ main {
 
 .admin-nav-button:hover,
 .admin-nav-button.is-active {
-    color: #66c0f4;
-    border-bottom-color: #66c0f4;
+    color: var(--primary-soft);
+    border-bottom-color: var(--primary);
 }
 
 .admin-panel {
     display: none;
     background: var(--admin-surface);
     border: 1px solid var(--admin-border);
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 1.5rem;
     text-align: left;
 }
@@ -98,8 +99,8 @@ main {
 input,
 select,
 textarea {
-    background: #172535;
-    color: #fff;
+    background: rgba(17, 24, 39, 0.72);
+    color: var(--text);
     border: 1px solid var(--admin-border);
     border-radius: 4px;
     padding: 0.55rem 0.65rem;
@@ -127,6 +128,12 @@ textarea {
     margin-bottom: 0.25rem;
 }
 
+.registration-next-update {
+    margin: 0;
+    color: var(--admin-muted);
+    font-size: 0.9rem;
+}
+
 .filter-result {
     color: var(--admin-muted);
     margin-left: auto;
@@ -151,8 +158,8 @@ td {
 }
 
 th {
-    background-color: #1b2838;
-    color: #66c0f4;
+    background-color: var(--surface-strong);
+    color: var(--primary-soft);
 }
 
 select {
@@ -165,15 +172,9 @@ img {
 }
 
 .button {
-    background-color: #1b2838;
-    color: #66c0f4;
-    border: none;
-    padding: 10px 16px;
     margin: 1rem 0;
-    font-size: 1rem;
+    font-size: 0.95rem;
     cursor: pointer;
-    border-radius: 4px;
-    transition: background 0.2s ease;
   }
 
 .secondary-button {
@@ -283,7 +284,7 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    color: #fff;
+    color: var(--text);
     margin: 0.25rem 0 1rem;
 }
 
@@ -301,7 +302,7 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: 0.7rem;
-    color: #fff;
+    color: var(--text);
 }
 
 .remove-sheet-button {
@@ -337,8 +338,4 @@ button:disabled {
         flex: 1 1 100%;
     }
 }
-  
-  .button:hover {
-    background-color: #0f1a24;
-  }
-  
+

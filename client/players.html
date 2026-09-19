@@ -98,18 +98,25 @@
       name.textContent = player.username;
       nameRow.append(name);
       const role = document.createElement('p');
+      role.className = `player-directory-role role-${String(player.role || 'player').toLowerCase()}`;
       role.textContent = player.role;
       const team = document.createElement('p');
+      team.className = `player-directory-team${player.team_name ? '' : ' is-unassigned'}`;
       team.textContent = player.team_name || 'No team';
 
       const metadata = document.createElement('div');
       metadata.className = 'player-meta';
+      const globalRank = createPlayerMetaItem('Global rank', formatRank(player.bws_global_rank));
+      globalRank.classList.add('player-meta-global-rank');
+      const badgeCount = createPlayerMetaItem('Badges', player.bws_badge_count ?? 'Unavailable');
       metadata.append(
-        createPlayerMetaItem('Global rank', formatRank(player.bws_global_rank)),
-        createPlayerMetaItem('Badges', player.bws_badge_count ?? 'Unavailable')
+        globalRank,
+        badgeCount
       );
       if (Number(player.bws_badge_count) > 0) {
-        metadata.append(createPlayerMetaItem('Post-BWS rank', formatRank(player.bws_rank)));
+        const bwsRank = createPlayerMetaItem('Post-BWS rank', formatRank(player.bws_rank));
+        bwsRank.classList.add('player-meta-bws-rank');
+        metadata.append(bwsRank);
       } else {
         const reservedSlot = document.createElement('div');
         reservedSlot.className = 'player-meta-item player-meta-placeholder';

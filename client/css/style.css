@@ -1,38 +1,63 @@
-/* General body style */
+:root {
+  --bg: #0b1020;
+  --surface: #182235;
+  --surface-strong: #121d30;
+  --panel: #1d2a3d;
+  --primary: #7c9cff;
+  --primary-soft: #9db4ff;
+  --secondary: #64d3ff;
+  --text: #edf2ff;
+  --text-soft: #a9b7d1;
+  --text-inverse: #0b1020;
+  --line: rgba(157, 180, 255, 0.2);
+  --shadow: rgba(7, 10, 18, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #1b2838;
-  color: #ffffff;
+  min-height: 100vh;
+  padding: 2rem 1.25rem 4rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle at top, rgba(124, 156, 255, 0.18), transparent 28%),
+    linear-gradient(180deg, var(--bg) 0%, #0a1220 100%);
+  color: var(--text);
   text-align: center;
-  padding: 2rem;
 }
 
-/* Styled headline */
 h1 {
-  color: #66c0f4;
-  margin-bottom: 2rem;
+  margin: 0 0 1.5rem;
+  color: var(--text);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1.1;
 }
 
-/* Button-like link */
-a.button {
-  display: inline-block;
-  background-color: #66c0f4;
-  color: #1b2838;
-  padding: 12px 24px;
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%);
+  box-shadow: 0 10px 25px rgba(124, 156, 255, 0.2);
+  color: var(--text-inverse);
+  padding: 0.7rem 1rem;
   text-decoration: none;
-  font-weight: bold;
-  border-radius: 4px;
-  transition: background-color 0.3s;
-  margin: 10px;
+  font-weight: 700;
+  transition: 0.2s ease;
 }
 
-a.button[hidden] {
+.button[hidden] {
   display: none;
 }
 
-a.button:hover {
-  background-color: #417aaf;
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(124, 156, 255, 0.3);
 }
 
 .mappool-nm-row td {
@@ -63,30 +88,61 @@ a.button:hover {
   color: #c27ba0;
 }
 
-/* User info container */
-#user-info {
-  margin-top: 2rem;
+.landing-page {
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
 }
 
-img {
+.landing-shell {
+  width: min(100%, 480px);
+  padding: 2.5rem;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  margin-top: 1rem;
-  max-width: 150px;
-  height: auto;
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 18px 38px var(--shadow);
 }
 
-.button {
-  background-color: #1b2838;
-  color: #66c0f4;
-  border: none;
-  padding: 10px 16px;
-  margin: 1rem 0;
-  font-size: 1rem;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s ease;
+.landing-mark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  color: var(--text-inverse);
+  font-weight: 800;
+  font-size: 1.25rem;
 }
 
-.button:hover {
-  background-color: #0f1a24;
+.landing-eyebrow {
+  margin: 0 0 0.45rem;
+  color: var(--primary-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-copy {
+  margin: 0 0 1.5rem;
+  color: var(--text-soft);
+}
+
+.mappool-page > h1,
+.admin-page > h1 {
+  width: min(100%, 1180px);
+  margin: 0 auto 1rem;
+  text-align: left;
+}
+
+.mappool-page > .button {
+  margin: 0;
+}
+
+#mappool-message {
+  width: min(100%, 1800px);
+  margin: 1.25rem auto 0;
+  color: var(--text-soft);
 }

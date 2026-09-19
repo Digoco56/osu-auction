@@ -23,6 +23,7 @@ const REGISTRATION_END_AT_SEED = process.env.REGISTRATION_END_AT || null;
 let osuApiToken = null;
 let osuApiTokenExpiresAt = 0;
 let playerEligibilityRefreshInProgress = false;
+let nextPlayerEligibilityRefreshAt = null;
 
 async function initializeDatabase() {
     await db.query(`
@@ -746,7 +747,10 @@ app.get('/admin/registration-window', requireAdmin, async (req, res) => {
         startAt: window.startAt?.toISOString() || null,
         endAt: window.endAt?.toISOString() || null,
         isConfigured: window.isConfigured,
-        isOpen: window.isOpen
+        isOpen: window.isOpen,
+        nextPlayerEligibilityRefreshAt: window.isOpen
+            ? nextPlayerEligibilityRefreshAt?.toISOString() || null
+            : null
     });
 });
 
@@ -772,7 +776,10 @@ app.post('/admin/registration-window', requireAdmin, express.json(), async (req,
     res.json({
         startAt: window.startAt.toISOString(),
         endAt: window.endAt.toISOString(),
-        isOpen: window.isOpen
+        isOpen: window.isOpen,
+        nextPlayerEligibilityRefreshAt: window.isOpen
+            ? nextPlayerEligibilityRefreshAt?.toISOString() || null
+            : null
     });
 });
 
@@ -1247,7 +1254,11 @@ const PORT = process.env.PORT || 3000;
 initializeDatabase()
     .then(() => {
         refreshAllPlayerEligibilities();
-        setInterval(refreshAllPlayerEligibilities, BWS_REFRESH_INTERVAL_MS);
+        nextPlayerEligibilityRefreshAt = new Date(Date.now() + BWS_REFRESH_INTERVAL_MS);
+        setInterval(() => {
+            nextPlayerEligibilityRefreshAt = new Date(Date.now() + BWS_REFRESH_INTERVAL_MS);
+            refreshAllPlayerEligibilities();
+        }, BWS_REFRESH_INTERVAL_MS);
         app.listen(PORT, () => {
             console.log(`Server running at http://localhost:${PORT}`);
         });

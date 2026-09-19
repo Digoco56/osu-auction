@@ -577,9 +577,39 @@ footer {
   font-size: 0.82rem;
 }
 
+.player-directory-role,
+.player-directory-team {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.16rem 0.42rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(157, 180, 255, 0.08);
+  font-weight: 700;
+}
+
+.player-directory-role.role-admin {
+  border-color: rgba(244, 201, 93, 0.45);
+  background: rgba(244, 201, 93, 0.12);
+  color: #fcd34d;
+}
+
+.player-directory-role.role-captain {
+  border-color: rgba(100, 211, 255, 0.4);
+  background: rgba(100, 211, 255, 0.1);
+  color: var(--secondary-soft);
+}
+
+.player-directory-team.is-unassigned {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-soft);
+}
+
 .player-meta {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.65fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(90px, 1.25fr) minmax(45px, 0.65fr) minmax(74px, 1fr);
   gap: 0.45rem;
   margin-top: 0.55rem;
 }
@@ -595,6 +625,14 @@ footer {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.player-meta-global-rank .player-meta-label {
+  white-space: nowrap;
+}
+
+.player-meta-bws-rank .player-meta-label {
+  line-height: 1.25;
 }
 
 .player-meta-value {
