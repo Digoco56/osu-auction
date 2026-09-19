@@ -39,6 +39,10 @@
         <div>
           <p class="eyebrow">Tournament status</p>
           <h1 id="dashboard-title">Auction dashboard</h1>
+          <div class="player-registration">
+            <a id="player-registration-link" href="/auth/discord" class="btn btn-primary" hidden>Register as player</a>
+            <p id="player-registration-message" class="player-registration-message" role="status"></p>
+          </div>
         </div>
         <p class="timezone-note">All times are shown in UTC+0.</p>
       </section>
@@ -180,6 +184,8 @@
         const usernameEl = document.getElementById('dashboard-username');
         const roleEl = document.getElementById('user-role');
         const adminNavLink = document.getElementById('admin-nav-link');
+        const registrationLink = document.getElementById('player-registration-link');
+        const registrationMessage = document.getElementById('player-registration-message');
 
         if (avatarEl && user.avatar_url) {
           avatarEl.src = user.avatar_url;
@@ -191,6 +197,22 @@
         const isAdmin = (user.role || '').toLowerCase() === 'admin';
         if (adminNavLink) {
           adminNavLink.hidden = !isAdmin;
+        }
+
+        if (registrationLink && registrationMessage) {
+          const registrationStatus = new URLSearchParams(window.location.search).get('registration');
+          if (user.isRegisteredPlayer) {
+            registrationLink.hidden = true;
+            registrationMessage.textContent = 'You are registered as a player.';
+          } else {
+            registrationLink.hidden = false;
+            registrationMessage.textContent = 'Player registration requires Discord login and membership in the tournament Discord server.';
+            if (registrationStatus === 'cancelled') {
+              registrationMessage.textContent = 'Discord authorization was cancelled. Registration was not completed.';
+            } else if (registrationStatus === 'discord-required') {
+              registrationMessage.textContent = 'Join the tournament Discord server before registering as a player.';
+            }
+          }
         }
       } catch (error) {
         console.error('Could not load dashboard user:', error);

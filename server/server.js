@@ -137,27 +137,10 @@ app.use(session({
 async function isAdminUser(req) {
     if (!req.session.user) return false;
     const result = await db.query(
-        `SELECT role
-         FROM users
-         WHERE user_id = $1
-           AND is_registered_player = TRUE
-           AND discord_id IS NOT NULL`,
+        'SELECT role FROM users WHERE user_id = $1',
         [req.session.user.id]
     );
     return result.rows[0]?.role === 'admin';
-}
-
-async function isRegisteredPlayer(req) {
-    if (!req.session.user) return false;
-    const result = await db.query(
-        `SELECT 1
-         FROM users
-         WHERE user_id = $1
-           AND is_registered_player = TRUE
-           AND discord_id IS NOT NULL`,
-        [req.session.user.id]
-    );
-    return result.rows.length > 0;
 }
 
 function saveSession(req) {
@@ -204,6 +187,8 @@ app.use((req, res, next) => {
         '/health',
         '/auth/osu',
         '/auth/osu/callback',
+        '/auth/discord',
+        '/auth/discord/callback',
         '/logout'
     ];
 
@@ -239,13 +224,8 @@ app.get('/api/mappool-access', async (req, res) => {
 
 // Route to initiate OAuth2 login with osu!
 app.get('/auth/osu', (req, res) => {
-    if (!discordConfigurationIsComplete()) {
-        return res.status(500).send('Discord login is not configured.');
-    }
-
     const state = crypto.randomUUID();
     req.session.osuOAuthState = state;
-    delete req.session.pendingOsuUser;
 
     const params = new URLSearchParams({
         client_id: process.env.OSU_CLIENT_ID,
@@ -296,14 +276,39 @@ app.get('/auth/osu/callback', async (req, res) => {
 
         const user = userResponse.data;
 
-        req.session.pendingOsuUser = {
+        const sessionUser = {
             id: user.id,
             username: user.username,
             avatar_url: user.avatar_url
         };
+        req.session.user = sessionUser;
         delete req.session.osuOAuthState;
+
+        await db.query(`
+            INSERT INTO users (user_id, username, avatar_url)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id) DO UPDATE SET
+                username = EXCLUDED.username,
+                avatar_url = EXCLUDED.avatar_url
+        `, [sessionUser.id, sessionUser.username, sessionUser.avatar_url]);
+        await db.query('DELETE FROM sessions WHERE user_id = $1', [sessionUser.id]);
+        await db.query(`
+            INSERT INTO sessions (session_id, user_id, username, avatar_url, login_time)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (session_id) DO UPDATE SET
+                user_id = EXCLUDED.user_id,
+                username = EXCLUDED.username,
+                avatar_url = EXCLUDED.avatar_url,
+                login_time = EXCLUDED.login_time
+        `, [
+            req.sessionID,
+            sessionUser.id,
+            sessionUser.username,
+            sessionUser.avatar_url,
+            new Date().toISOString()
+        ]);
         await saveSession(req);
-        res.redirect('/auth/discord');
+        res.redirect('/dashboard.html');
     } catch (error) {
         console.error('Authentication error:', error.response?.data || error.message);
         res.status(500).send('Authentication failed.');
@@ -311,7 +316,7 @@ app.get('/auth/osu/callback', async (req, res) => {
 });
 
 app.get('/auth/discord', async (req, res) => {
-    if (!req.session.pendingOsuUser) {
+    if (!req.session.user) {
         return res.redirect('/');
     }
     if (!discordConfigurationIsComplete()) {
@@ -334,15 +339,14 @@ app.get('/auth/discord', async (req, res) => {
 
 app.get('/auth/discord/callback', async (req, res) => {
     const code = req.query.code;
-    const pendingOsuUser = req.session.pendingOsuUser;
+    const sessionUser = req.session.user;
     if (req.query.error === 'access_denied') {
-        delete req.session.pendingOsuUser;
         delete req.session.discordOAuthState;
         await saveSession(req);
-        return res.redirect('/?discord=cancelled');
+        return res.redirect('/dashboard.html?registration=cancelled');
     }
 
-    if (!code || !pendingOsuUser || req.query.state !== req.session.discordOAuthState) {
+    if (!code || !sessionUser || req.query.state !== req.session.discordOAuthState) {
         return res.status(400).send('Invalid Discord authorization response.');
     }
 
@@ -369,16 +373,15 @@ app.get('/auth/discord/callback', async (req, res) => {
         ));
 
         if (!hasJoinedDiscord) {
-            delete req.session.pendingOsuUser;
             delete req.session.discordOAuthState;
             await saveSession(req);
-            return res.redirect('/?discord=required');
+            return res.redirect('/dashboard.html?registration=discord-required');
         }
 
         const discordUser = discordUserResponse.data;
         const existingDiscordLink = await db.query(
             'SELECT user_id FROM users WHERE discord_id = $1 AND user_id <> $2',
-            [discordUser.id, pendingOsuUser.id]
+            [discordUser.id, sessionUser.id]
         );
         if (existingDiscordLink.rows.length > 0) {
             return res.status(409).send('This Discord account is already linked to another osu! account.');
@@ -398,34 +401,16 @@ app.get('/auth/discord/callback', async (req, res) => {
                 is_registered_player = TRUE,
                 registered_at = COALESCE(users.registered_at, NOW())
         `, [
-            pendingOsuUser.id,
-            pendingOsuUser.username,
-            pendingOsuUser.avatar_url,
+            sessionUser.id,
+            sessionUser.username,
+            sessionUser.avatar_url,
             discordUser.id,
             discordUser.global_name || discordUser.username
         ]);
 
-        req.session.user = pendingOsuUser;
-        delete req.session.pendingOsuUser;
         delete req.session.discordOAuthState;
-        await db.query('DELETE FROM sessions WHERE user_id = $1', [pendingOsuUser.id]);
-        await db.query(`
-            INSERT INTO sessions (session_id, user_id, username, avatar_url, login_time)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (session_id) DO UPDATE SET
-                user_id = EXCLUDED.user_id,
-                username = EXCLUDED.username,
-                avatar_url = EXCLUDED.avatar_url,
-                login_time = EXCLUDED.login_time
-        `, [
-            req.sessionID,
-            pendingOsuUser.id,
-            pendingOsuUser.username,
-            pendingOsuUser.avatar_url,
-            new Date().toISOString()
-        ]);
         await saveSession(req);
-        res.redirect('/dashboard.html');
+        res.redirect('/dashboard.html?registration=success');
     } catch (error) {
         console.error('Discord authentication error:', error.response?.data || error.message);
         res.status(500).send('Discord authentication failed.');
@@ -434,23 +419,24 @@ app.get('/auth/discord/callback', async (req, res) => {
 
 // API route to get current user info
 app.get('/api/user', async (req, res) => {
-    if (!(await isRegisteredPlayer(req))) {
+    if (!req.session.user) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const result = await db.query(
-        'SELECT role FROM users WHERE user_id = $1',
+        'SELECT role, is_registered_player FROM users WHERE user_id = $1',
         [req.session.user.id]
     );
 
     res.json({
         ...req.session.user,
-        role: result.rows[0]?.role || 'player'
+        role: result.rows[0]?.role || 'player',
+        isRegisteredPlayer: result.rows[0]?.is_registered_player || false
     });
 });
 
 app.get('/api/user/team', async (req, res) => {
-    if (!(await isRegisteredPlayer(req))) {
+    if (!req.session.user) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -499,7 +485,7 @@ app.get('/api/user/team', async (req, res) => {
 });
 
 app.get('/api/players', async (req, res) => {
-    if (!(await isRegisteredPlayer(req))) {
+    if (!req.session.user) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -525,7 +511,7 @@ app.get('/logout', async (req, res) => {
 });
 
 async function requireAdmin(req, res, next) {
-    if (!(await isRegisteredPlayer(req))) return res.status(401).send('Not authenticated');
+    if (!req.session.user) return res.status(401).send('Not authenticated');
 
     const result = await db.query(
         'SELECT role FROM users WHERE user_id = $1',
