@@ -15,59 +15,35 @@
       </div>
 
       <nav>
-        <a href="#">Dashboard</a>
         <a href="#">Players</a>
         <a href="#">Teams</a>
         <a href="/mappool.html">Mappool</a>
         <a href="#">Rules</a>
+        <a id="admin-nav-link" href="/admin.html" class="nav-admin-link" hidden>Admin Panel</a>
       </nav>
 
-      <div class="user-pill">
-        <img id="dashboard-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar" />
-        <span id="dashboard-username">PlayerName</span>
+      <div class="account-area">
+        <div class="user-pill">
+          <img id="dashboard-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar" />
+          <div>
+            <span id="dashboard-username">PlayerName</span>
+            <span id="user-role" class="user-role">Player</span>
+          </div>
+        </div>
+        <a href="/logout" class="logout-link">Logout</a>
       </div>
     </header>
 
-    <section class="hero-dashboard">
-      <div class="panel welcome-panel">
-        <span class="eyebrow">Logged in</span>
-        <h1 id="welcome-message">Welcome back, PlayerName.</h1>
-        <p>
-          Your profile is active, your captain has already assigned you to a pool, and the auction round is live.
-          You can review your team, your budget, and your next match status below.
-        </p>
-
-        <div class="action-row">
-          <a href="#" class="btn btn-primary">View profile</a>
-          <a href="/mappool.html" class="btn btn-secondary">Open mappool</a>
-          <a href="/logout" class="btn btn-secondary">Logout</a>
+    <main class="dashboard-content">
+      <section class="dashboard-heading" aria-labelledby="dashboard-title">
+        <div>
+          <p class="eyebrow">Tournament status</p>
+          <h1 id="dashboard-title">Auction dashboard</h1>
         </div>
-      </div>
+        <p class="timezone-note">All times are shown in UTC+0.</p>
+      </section>
 
-      <aside class="panel summary-panel">
-        <h3>Overview</h3>
-        <ul class="summary-list">
-          <li class="summary-item">
-            <span class="summary-label">Role</span>
-            <span class="summary-value" id="user-role">Player</span>
-          </li>
-          <li class="summary-item">
-            <span class="summary-label">Team</span>
-            <span class="summary-value">Crimson Tide</span>
-          </li>
-          <li class="summary-item">
-            <span class="summary-label">Auction</span>
-            <span class="summary-value">Live</span>
-          </li>
-          <li class="summary-item">
-            <span class="summary-label">Budget</span>
-            <span class="summary-value">10,500</span>
-          </li>
-        </ul>
-      </aside>
-    </section>
-
-    <section class="stats-grid">
+      <section class="stats-grid">
       <div class="stat-card panel">
         <span class="label">Total credits</span>
         <span class="value accent">10,500</span>
@@ -79,13 +55,13 @@
       </div>
 
       <div class="stat-card panel">
-        <span class="label">Players in squad</span>
+        <span class="label">Players in team</span>
         <span class="value">7</span>
       </div>
 
       <div class="stat-card panel">
         <span class="label">Next match</span>
-        <span class="value">05:30</span>
+        <span class="value">05:30 UTC+0</span>
       </div>
     </section>
 
@@ -160,7 +136,7 @@
           </div>
           <div class="mini-row">
             <strong>Next round</strong>
-            <span>Today, 18:30</span>
+            <span>Today, 18:30 UTC+0</span>
           </div>
           <div class="mini-row">
             <strong>Rules</strong>
@@ -180,7 +156,7 @@
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <div>
-              <div class="timeline-meta">18:05</div>
+              <div class="timeline-meta">18:05 UTC+0</div>
               <div class="timeline-title">Your team drafted a new support player.</div>
             </div>
           </div>
@@ -188,7 +164,7 @@
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <div>
-              <div class="timeline-meta">17:40</div>
+              <div class="timeline-meta">17:40 UTC+0</div>
               <div class="timeline-title">Mappool was refreshed and published.</div>
             </div>
           </div>
@@ -196,7 +172,7 @@
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <div>
-              <div class="timeline-meta">16:20</div>
+              <div class="timeline-meta">16:20 UTC+0</div>
               <div class="timeline-title">Auction round 2 has started.</div>
             </div>
           </div>
@@ -228,6 +204,7 @@
         </div>
       </div>
     </section>
+    </main>
   </div>
 
   <script>
@@ -245,16 +222,20 @@
 
         const avatarEl = document.getElementById('dashboard-user-avatar');
         const usernameEl = document.getElementById('dashboard-username');
-        const welcomeEl = document.getElementById('welcome-message');
         const roleEl = document.getElementById('user-role');
+        const adminNavLink = document.getElementById('admin-nav-link');
 
         if (avatarEl && user.avatar_url) {
           avatarEl.src = user.avatar_url;
         }
 
         if (usernameEl) usernameEl.textContent = username;
-        if (welcomeEl) welcomeEl.textContent = `Welcome back, ${username}.`;
         if (roleEl) roleEl.textContent = displayRole;
+
+        const isAdmin = (user.role || '').toLowerCase() === 'admin';
+        if (adminNavLink) {
+          adminNavLink.hidden = !isAdmin;
+        }
       } catch (error) {
         console.error('Could not load dashboard user:', error);
         window.location.href = '/';
