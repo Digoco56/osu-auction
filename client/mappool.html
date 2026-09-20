@@ -5,14 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mappool - osu!Auction</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/homepage.css">
   <link rel="stylesheet" href="css/mappool.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body class="mappool-page">
-  <h1>Mappool</h1>
-  <a class="button" href="/">Home</a>
-  <p id="mappool-message">Loading...</p>
-  <main id="mappool-sections"></main>
+  <div class="dashboard-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">o!</div>
+        <span>osu! Auction</span>
+      </div>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/players.html">Players</a>
+        <a href="/teams.html">Teams</a>
+        <a href="/mappool.html">Mappool</a>
+        <a href="#">Rules</a>
+        <a id="admin-nav-link" href="/admin.html" class="nav-admin-link" hidden>Admin Panel</a>
+      </nav>
+      <div id="mappool-account-area" class="account-area" hidden>
+        <div class="user-pill">
+          <img id="mappool-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar">
+          <div>
+            <span id="mappool-username">Player</span>
+            <span id="mappool-role" class="user-role">Player</span>
+          </div>
+        </div>
+        <a href="/logout" class="logout-link">Logout</a>
+      </div>
+    </header>
+    <main class="dashboard-content mappool-content">
+      <section class="dashboard-heading">
+        <div>
+          <p class="eyebrow">Tournament selection</p>
+          <h1>Mappool</h1>
+        </div>
+      </section>
+      <p id="mappool-message">Loading...</p>
+      <div id="mappool-sections"></div>
+    </main>
+  </div>
   <script src="js/mappool.js"></script>
 </body>
 </html>

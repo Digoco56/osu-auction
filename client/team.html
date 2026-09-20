@@ -90,7 +90,7 @@
         .replace(/^./, character => character.toUpperCase());
       if (user.avatar_url) document.getElementById('team-page-user-avatar').src = user.avatar_url;
       document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
-      document.getElementById('team-name-input').value = data.team.name;
+      document.getElementById('team-name-input').value = data.team.name || '';
       setImagePreview(data.team.imageUrl);
     }
 

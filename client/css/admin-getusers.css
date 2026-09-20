@@ -242,6 +242,11 @@ textarea {
     object-position: center;
 }
 
+.admin-team-image[hidden],
+.admin-team-image-placeholder[hidden] {
+    display: none;
+}
+
 .admin-team-image-placeholder {
     display: grid;
     place-items: center;

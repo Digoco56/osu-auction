@@ -1,6 +1,19 @@
 const message = document.getElementById('mappool-message');
 const container = document.getElementById('mappool-sections');
 
+fetch('/api/user')
+  .then(response => response.ok ? response.json() : null)
+  .then(user => {
+    if (!user) return;
+    document.getElementById('mappool-account-area').hidden = false;
+    document.getElementById('mappool-username').textContent = user.username || 'Player';
+    document.getElementById('mappool-role').textContent = (user.role || 'player')
+      .replace(/^./, character => character.toUpperCase());
+    if (user.avatar_url) document.getElementById('mappool-user-avatar').src = user.avatar_url;
+    document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
+  })
+  .catch(error => console.error('Could not load mappool user:', error));
+
 fetch('/api/mappool')
   .then(response => response.ok ? response.json() : Promise.reject())
   .then(({ sections }) => {
