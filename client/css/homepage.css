@@ -891,7 +891,7 @@ footer {
 
 .team-dashboard-image,
 .team-dashboard-image-placeholder {
-  width: min(100%, 12rem);
+  width: min(100%, 20rem);
   aspect-ratio: 1;
   border: 1px solid var(--line);
   border-radius: 6px;
