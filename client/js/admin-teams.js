@@ -89,6 +89,40 @@ function createTeamCard(team) {
   card.className = 'team-management-card';
   const header = document.createElement('div');
   header.className = 'team-management-card-header';
+  let pendingImageData;
+  const imageControl = document.createElement('label');
+  imageControl.className = 'admin-team-image-control';
+  const imagePreview = document.createElement('img');
+  imagePreview.className = 'admin-team-image';
+  imagePreview.alt = `${team.name} image`;
+  imagePreview.src = team.imageUrl || '';
+  imagePreview.hidden = !team.imageUrl;
+  const imagePlaceholder = document.createElement('span');
+  imagePlaceholder.className = 'admin-team-image-placeholder';
+  imagePlaceholder.textContent = 'Image';
+  imagePlaceholder.hidden = Boolean(team.imageUrl);
+  const imageInput = document.createElement('input');
+  imageInput.type = 'file';
+  imageInput.accept = 'image/png,image/jpeg,image/webp';
+  imageInput.hidden = true;
+  imageInput.addEventListener('change', async () => {
+    const file = imageInput.files[0];
+    if (!file) return;
+    try {
+      const croppedImage = await window.openTeamImageEditor(file);
+      if (croppedImage) {
+        pendingImageData = croppedImage;
+        imagePreview.src = croppedImage;
+        imagePreview.hidden = false;
+        imagePlaceholder.hidden = true;
+      }
+    } catch (error) {
+      setTeamManagementStatus(error.message, 'error');
+    } finally {
+      imageInput.value = '';
+    }
+  });
+  imageControl.append(imagePreview, imagePlaceholder, imageInput);
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.maxLength = 80;
@@ -104,7 +138,7 @@ function createTeamCard(team) {
       await requestTeamChange(`/admin/teams/${team.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nameInput.value })
+        body: JSON.stringify({ name: nameInput.value, ...(pendingImageData !== undefined && { imageData: pendingImageData }) })
       });
       setTeamManagementStatus('Team name saved.', 'success');
       await loadTeamManagement();
@@ -133,7 +167,7 @@ function createTeamCard(team) {
     }
   });
 
-  header.append(nameInput, saveButton, deleteButton);
+  header.append(imageControl, nameInput, saveButton, deleteButton);
   const members = document.createElement('div');
   members.className = 'team-member-list';
   if (team.members.length) {

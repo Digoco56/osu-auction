@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teams | osu! Auction</title>
+  <link rel="stylesheet" href="css/homepage.css" />
+</head>
+<body>
+  <div class="dashboard-shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">o!</div><span>osu! Auction</span></div>
+      <nav>
+        <a href="/">Home</a><a href="/players.html">Players</a><a href="/teams.html">Teams</a><a href="/mappool.html">Mappool</a><a href="#">Rules</a>
+        <a id="admin-nav-link" href="/admin.html" class="nav-admin-link" hidden>Admin Panel</a>
+      </nav>
+      <div class="account-area"><div class="user-pill"><img id="teams-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar"><div><span id="teams-username">Player</span><span id="teams-role" class="user-role">Player</span></div></div><a href="/logout" class="logout-link">Logout</a></div>
+    </header>
+    <main class="dashboard-content">
+      <section class="dashboard-heading"><div><p class="eyebrow">Tournament rosters</p><h1>Teams</h1></div><p id="teams-count" class="timezone-note">Loading teams</p></section>
+      <section id="teams-directory" class="teams-directory" aria-live="polite"><p class="empty-lineup">Loading teams...</p></section>
+    </main>
+  </div>
+  <script>
+    function createTeamCard(team) {
+      const card = document.createElement('article');
+      card.className = 'team-directory-card panel';
+      const image = document.createElement('img');
+      image.className = 'team-directory-image';
+      image.hidden = !team.imageUrl;
+      image.src = team.imageUrl || '';
+      image.alt = `${team.name} image`;
+      const placeholder = document.createElement('div');
+      placeholder.className = 'team-directory-placeholder';
+      placeholder.hidden = Boolean(team.imageUrl);
+      placeholder.textContent = 'Team';
+      const details = document.createElement('div');
+      const name = document.createElement('h2'); name.textContent = team.name;
+      const captain = document.createElement('p'); captain.textContent = team.captainUsername ? `Captain: ${team.captainUsername}` : 'No captain assigned';
+      const count = document.createElement('p'); count.textContent = `${team.memberCount} players`;
+      details.append(name, captain, count);
+      card.append(image, placeholder, details);
+      return card;
+    }
+    async function loadTeams() {
+      const [userResponse, teamsResponse] = await Promise.all([fetch('/api/user'), fetch('/api/teams')]);
+      if (!userResponse.ok || !teamsResponse.ok) { window.location.href = '/'; return; }
+      const [user, teams] = await Promise.all([userResponse.json(), teamsResponse.json()]);
+      document.getElementById('teams-username').textContent = user.username || 'Player';
+      document.getElementById('teams-role').textContent = (user.role || 'player').replace(/^./, character => character.toUpperCase());
+      if (user.avatar_url) document.getElementById('teams-user-avatar').src = user.avatar_url;
+      document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
+      document.getElementById('teams-count').textContent = `${teams.length} teams`;
+      const directory = document.getElementById('teams-directory');
+      directory.replaceChildren(...teams.map(createTeamCard));
+      if (!teams.length) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-lineup';
+        empty.textContent = 'No teams have been created yet.';
+        directory.append(empty);
+      }
+    }
+    loadTeams().catch(error => console.error('Could not load teams:', error));
+  </script>
+</body>
+</html>

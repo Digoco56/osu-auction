@@ -16,7 +16,7 @@
       <nav>
         <a href="/">Home</a>
         <a href="/players.html">Players</a>
-        <a href="/team.html">Teams</a>
+        <a href="/teams.html">Teams</a>
         <a href="/mappool.html">Mappool</a>
         <a href="#">Rules</a>
         <a id="admin-nav-link" href="/admin.html" class="nav-admin-link" hidden>Admin Panel</a>
@@ -58,6 +58,7 @@
     </main>
   </div>
 
+  <script src="js/team-image-editor.js"></script>
   <script>
     let pendingImageData;
 
@@ -96,22 +97,25 @@
     document.getElementById('team-image-input').addEventListener('change', event => {
       const file = event.target.files[0];
       if (!file) return;
-      if (file.size > 1400000) {
-        const status = document.getElementById('team-settings-status');
+      const status = document.getElementById('team-settings-status');
+      try {
+        const croppedImage = await window.openTeamImageEditor(file);
+        if (croppedImage) {
+          pendingImageData = croppedImage;
+          setImagePreview(pendingImageData);
+          status.className = 'team-settings-status';
+          status.textContent = 'Image ready to save.';
+        }
+      } catch (error) {
         status.className = 'team-settings-status is-error';
-        status.textContent = 'Use an image smaller than 1.4 MB.';
+        status.textContent = error.message;
+      } finally {
         event.target.value = '';
-        return;
       }
-      const reader = new FileReader();
-      reader.addEventListener('load', () => {
-        pendingImageData = reader.result;
-        setImagePreview(pendingImageData);
-      });
-      reader.readAsDataURL(file);
     });
 
     document.getElementById('clear-team-image').addEventListener('click', () => {
+      if (!window.confirm('Remove the team image and restore the default image?')) return;
       pendingImageData = null;
       document.getElementById('team-image-input').value = '';
       setImagePreview(null);

@@ -871,6 +871,32 @@ app.get('/api/players', async (req, res) => {
     })));
 });
 
+app.get('/api/teams', async (req, res) => {
+    if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+
+    const teams = await db.query(`
+        SELECT
+            t.team_id,
+            t.name,
+            t.image_url,
+            captain.username AS captain_username,
+            COUNT(tm.user_id)::INTEGER AS member_count
+        FROM teams t
+        LEFT JOIN users captain ON captain.user_id = t.captain_id
+        LEFT JOIN team_members tm ON tm.team_id = t.team_id
+        GROUP BY t.team_id, captain.username
+        HAVING COUNT(tm.user_id) > 0
+        ORDER BY t.name
+    `);
+    res.json(teams.rows.map(team => ({
+        id: team.team_id,
+        name: team.name,
+        imageUrl: team.image_url,
+        captainUsername: team.captain_username,
+        memberCount: team.member_count
+    })));
+});
+
 // Logout route 
 app.get('/logout', async (req, res) => {
     await db.query(`DELETE FROM sessions WHERE session_id = $1`, [req.sessionID]);
@@ -1406,32 +1432,60 @@ app.post('/admin/set-user-team', requireAdmin, express.json(), async (req, res) 
         return res.status(400).json({ error: 'A valid user is required' });
     }
 
-    if (teamId === null) {
-        await db.query('DELETE FROM team_members WHERE user_id = $1', [parsedUserId]);
-        return res.sendStatus(204);
+    try {
+        await assignPlayerToTeam(parsedUserId, teamId === null ? null : Number(teamId));
+        res.sendStatus(204);
+    } catch (error) {
+        if (error.status) return res.status(error.status).json({ error: error.message });
+        throw error;
     }
-
-    const parsedTeamId = Number(teamId);
-    if (!Number.isSafeInteger(parsedTeamId) || parsedTeamId < 1) {
-        return res.status(400).json({ error: 'A valid team is required' });
-    }
-
-    const teamResult = await db.query(
-        'SELECT team_id FROM teams WHERE team_id = $1',
-        [parsedTeamId]
-    );
-    if (teamResult.rows.length === 0) {
-        return res.status(404).json({ error: 'Team not found' });
-    }
-
-    await db.query('DELETE FROM team_members WHERE user_id = $1', [parsedUserId]);
-    await db.query(
-        'INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)',
-        [parsedTeamId, parsedUserId]
-    );
-
-    res.sendStatus(204);
 });
+
+async function assignPlayerToTeam(userId, destinationTeamId) {
+    if (destinationTeamId !== null && (!Number.isSafeInteger(destinationTeamId) || destinationTeamId < 1)) {
+        throw Object.assign(new Error('A valid team is required.'), { status: 400 });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        const [playerResult, captainResult] = await Promise.all([
+            client.query('SELECT role, is_registered_player FROM users WHERE user_id = $1', [userId]),
+            client.query('SELECT team_id FROM teams WHERE captain_id = $1', [userId])
+        ]);
+        const player = playerResult.rows[0];
+        const captainTeamId = captainResult.rows[0]?.team_id;
+        if (!player?.is_registered_player) {
+            throw Object.assign(new Error('Registered player not found.'), { status: 404 });
+        }
+        if (captainTeamId && Number(captainTeamId) !== Number(destinationTeamId)) {
+            throw Object.assign(new Error('A team captain cannot be moved or unassigned from their team.'), { status: 409 });
+        }
+        if (destinationTeamId === null) {
+            await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+            await client.query('COMMIT');
+            return;
+        }
+
+        const teamResult = await client.query('SELECT team_id, captain_id FROM teams WHERE team_id = $1', [destinationTeamId]);
+        const team = teamResult.rows[0];
+        if (!team) throw Object.assign(new Error('Team not found.'), { status: 404 });
+
+        await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+        if (!team.captain_id && player.role === 'captain') {
+            await client.query('UPDATE teams SET captain_id = $1 WHERE team_id = $2', [userId, destinationTeamId]);
+            await client.query('INSERT INTO team_members (team_id, user_id, team_role) VALUES ($1, $2, $3)', [destinationTeamId, userId, 'Captain']);
+        } else {
+            await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [destinationTeamId, userId]);
+        }
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
 
 app.get('/admin/team-management', requireAdmin, async (req, res) => {
     const [teamRows, unassignedRows] = await Promise.all([
@@ -1439,6 +1493,7 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
             SELECT
                 t.team_id,
                 t.name AS team_name,
+                t.image_url,
                 u.user_id,
                 u.username,
                 u.avatar_url
@@ -1463,6 +1518,7 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
             teamsById.set(row.team_id, {
                 id: row.team_id,
                 name: row.team_name,
+                imageUrl: row.image_url,
                 members: []
             });
         }
@@ -1505,20 +1561,29 @@ app.post('/admin/teams', requireAdmin, express.json(), async (req, res) => {
     }
 });
 
-app.put('/admin/teams/:teamId', requireAdmin, express.json(), async (req, res) => {
+app.put('/admin/teams/:teamId', requireAdmin, express.json({ limit: '2mb' }), async (req, res) => {
     const teamId = Number(req.params.teamId);
     const name = String(req.body.name || '').trim();
+    const hasImageUpdate = Object.hasOwn(req.body, 'imageData');
+    const imageData = req.body.imageData;
     if (!Number.isSafeInteger(teamId) || teamId < 1 || !name || name.length > 80) {
         return res.status(400).json({ error: 'A valid team name is required.' });
+    }
+    if (hasImageUpdate && imageData !== null && !isValidTeamImage(imageData)) {
+        return res.status(400).json({ error: 'Use a PNG, JPEG, or WebP image smaller than 2 MB.' });
     }
 
     try {
         const result = await db.query(
-            'UPDATE teams SET name = $1 WHERE team_id = $2 RETURNING team_id, name',
-            [name, teamId]
+            `UPDATE teams
+             SET name = $1,
+                 image_url = CASE WHEN $2 THEN $3 ELSE image_url END
+             WHERE team_id = $4
+             RETURNING team_id, name, image_url`,
+            [name, hasImageUpdate, hasImageUpdate ? imageData : null, teamId]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Team not found.' });
-        res.json({ id: result.rows[0].team_id, name: result.rows[0].name });
+        res.json({ id: result.rows[0].team_id, name: result.rows[0].name, imageUrl: result.rows[0].image_url });
     } catch (error) {
         if (error.code === '23505') {
             return res.status(409).json({ error: 'A team with that name already exists.' });
@@ -1545,26 +1610,12 @@ app.post('/admin/teams/:teamId/members', requireAdmin, express.json(), async (re
         return res.status(400).json({ error: 'A valid team and player are required.' });
     }
 
-    const client = await db.connect();
     try {
-        await client.query('BEGIN');
-        const [teamResult, playerResult] = await Promise.all([
-            client.query('SELECT team_id FROM teams WHERE team_id = $1', [teamId]),
-            client.query('SELECT user_id FROM users WHERE user_id = $1 AND is_registered_player = TRUE', [userId])
-        ]);
-        if (teamResult.rows.length === 0) throw Object.assign(new Error('Team not found.'), { status: 404 });
-        if (playerResult.rows.length === 0) throw Object.assign(new Error('Registered player not found.'), { status: 404 });
-
-        await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
-        await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [teamId, userId]);
-        await client.query('COMMIT');
+        await assignPlayerToTeam(userId, teamId);
         res.sendStatus(204);
     } catch (error) {
-        await client.query('ROLLBACK');
         if (error.status) return res.status(error.status).json({ error: error.message });
         throw error;
-    } finally {
-        client.release();
     }
 });
 
@@ -1575,11 +1626,13 @@ app.delete('/admin/teams/:teamId/members/:userId', requireAdmin, async (req, res
         return res.status(400).json({ error: 'A valid team and player are required.' });
     }
 
-    await db.query(
-        'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
-        [teamId, userId]
-    );
-    res.sendStatus(204);
+    try {
+        await assignPlayerToTeam(userId, null);
+        res.sendStatus(204);
+    } catch (error) {
+        if (error.status) return res.status(error.status).json({ error: error.message });
+        throw error;
+    }
 });
 
 

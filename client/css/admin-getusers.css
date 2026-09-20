@@ -213,10 +213,42 @@ textarea {
 
 .team-management-card-header {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     gap: 0.45rem;
     padding: 0.75rem;
     border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-team-image-control {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    overflow: hidden;
+    border: 1px solid var(--admin-border);
+    border-radius: 4px;
+    background: rgba(124, 156, 255, 0.08);
+    cursor: pointer;
+}
+
+.admin-team-image,
+.admin-team-image-placeholder {
+    width: 100%;
+    height: 100%;
+}
+
+.admin-team-image {
+    object-fit: cover;
+    object-position: center;
+}
+
+.admin-team-image-placeholder {
+    display: grid;
+    place-items: center;
+    color: var(--admin-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .team-management-card-header input {
@@ -510,6 +542,14 @@ button:disabled {
 
     .team-member-row {
         grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .team-management-card-header {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .team-management-card-header button {
+        grid-column: span 1;
     }
 
     .team-member-row select {
