@@ -110,9 +110,11 @@ function formatRank(rank) {
           case 'name-desc': comparison = -compareNames(first, second); break;
           case 'registered-asc': comparison = compareNumbers(first, second, 'registered_at'); break;
           case 'registered-desc': comparison = -compareNumbers(first, second, 'registered_at'); break;
-          case 'rank-asc': comparison = compareNumbers(first, second, 'global_rank'); break;
+          case 'bws-asc': comparison = -compareNumbers(first, second, 'bws_rank'); break;
+          case 'bws-desc': comparison = compareNumbers(first, second, 'bws_rank'); break;
+          case 'rank-asc': comparison = -compareNumbers(first, second, 'global_rank'); break;
           case 'rank-desc':
-          default: comparison = -compareNumbers(first, second, 'global_rank'); break;
+          default: comparison = compareNumbers(first, second, 'global_rank'); break;
         }
         return comparison || compareNames(first, second);
       });
