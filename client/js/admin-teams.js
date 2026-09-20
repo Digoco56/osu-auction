@@ -5,6 +5,8 @@ const newTeamNameInput = document.getElementById('new-team-name');
 const createTeamButton = document.getElementById('create-team-button');
 const teamViewFilter = document.getElementById('team-view-filter');
 const unassignedPlayersSection = document.getElementById('unassigned-players-section');
+const teamNameFilter = document.getElementById('team-name-filter');
+const unassignedPlayerFilter = document.getElementById('unassigned-player-filter');
 
 let managedTeams = [];
 let unassignedPlayers = [];
@@ -210,15 +212,26 @@ async function loadTeamManagement() {
 
 function renderTeamManagement() {
   const view = teamViewFilter.value;
+  const teamSearch = teamNameFilter.value.trim().toLowerCase();
+  const playerSearch = unassignedPlayerFilter.value.trim().toLowerCase();
+  const filteredTeams = teamSearch
+    ? managedTeams.filter(team => team.name.toLowerCase().includes(teamSearch))
+    : managedTeams;
+  const filteredUnassignedPlayers = playerSearch
+    ? unassignedPlayers.filter(player => player.username.toLowerCase().includes(playerSearch))
+    : unassignedPlayers;
+
   unassignedPlayersSection.hidden = view === 'teams';
   teamManagementGrid.hidden = view === 'unassigned';
-  if (view !== 'teams') renderUnassignedPlayers(unassignedPlayers);
+  if (view !== 'teams') renderUnassignedPlayers(filteredUnassignedPlayers);
   if (view !== 'unassigned') {
-    teamManagementGrid.replaceChildren(...managedTeams.map(createTeamCard));
+    teamManagementGrid.replaceChildren(...filteredTeams.map(createTeamCard));
   }
 }
 
 teamViewFilter.addEventListener('change', renderTeamManagement);
+teamNameFilter.addEventListener('input', renderTeamManagement);
+unassignedPlayerFilter.addEventListener('input', renderTeamManagement);
 
 createTeamButton.addEventListener('click', async () => {
   const name = newTeamNameInput.value.trim();

@@ -151,13 +151,20 @@ textarea {
 .team-filter-row {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.6rem;
     margin-top: 0.9rem;
 }
 
-.team-filter-row label {
+.team-filter-row label,
+.unassigned-player-filter label {
     color: var(--admin-muted);
     font-size: 0.9rem;
+}
+
+.team-filter-row input,
+.unassigned-player-filter input {
+    min-width: 180px;
 }
 
 .team-create-row label {
@@ -176,6 +183,14 @@ textarea {
 .team-management-section h3 {
     margin: 0 0 0.65rem;
     font-size: 1rem;
+}
+
+.unassigned-player-filter {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 0.65rem;
 }
 
 .team-management-grid {

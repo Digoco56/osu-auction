@@ -704,7 +704,7 @@ footer {
 
 .team-dashboard-image,
 .team-dashboard-image-placeholder {
-  width: 100%;
+  width: min(100%, 7rem);
   aspect-ratio: 1;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -726,8 +726,9 @@ footer {
   text-transform: uppercase;
 }
 
-.team-dashboard-summary .eyebrow {
-  margin: 0.25rem 0 0;
+.team-dashboard-image[hidden],
+.team-dashboard-image-placeholder[hidden] {
+  display: none;
 }
 
 .team-dashboard-summary h2 {
@@ -745,8 +746,21 @@ footer {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1rem;
+  padding: 1rem;
   border-bottom: 1px solid var(--line);
+}
+
+.team-roster-row .avatar {
+  width: 3rem;
+  height: 3rem;
+}
+
+.team-roster-row .player-name {
+  font-size: 1rem;
+}
+
+.team-roster-row .player-role {
+  font-size: 0.82rem;
 }
 
 .team-roster-row:last-child {

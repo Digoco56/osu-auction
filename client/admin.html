@@ -89,10 +89,16 @@
                     <option value="teams">Teams</option>
                     <option value="unassigned">Unassigned players</option>
                 </select>
+                <label for="team-name-filter">Team name</label>
+                <input id="team-name-filter" type="search" placeholder="Filter teams">
             </div>
             <p class="status-message" id="team-management-status" role="status"></p>
             <section class="team-management-section" id="unassigned-players-section" aria-labelledby="unassigned-players-title">
                 <h3 id="unassigned-players-title">Unassigned players</h3>
+                <div class="unassigned-player-filter">
+                    <label for="unassigned-player-filter">Player name</label>
+                    <input id="unassigned-player-filter" type="search" placeholder="Filter unassigned players">
+                </div>
                 <div class="unassigned-player-list" id="unassigned-player-list"></div>
             </section>
             <section class="team-management-grid" id="team-management-grid" aria-live="polite"></section>
