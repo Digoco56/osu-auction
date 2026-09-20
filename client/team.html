@@ -71,28 +71,32 @@
     }
 
     async function loadTeamSettings() {
-      const [userResponse, teamResponse] = await Promise.all([
-        fetch('/api/user', { cache: 'no-store' }),
-        fetch('/api/captain/team', { cache: 'no-store' })
-      ]);
-      if (!userResponse.ok || !teamResponse.ok) {
+      const teamResponse = await fetch('/api/captain/team', { cache: 'no-store' });
+      if (!teamResponse.ok) {
         window.location.href = '/dashboard.html';
         return;
       }
-      const [user, data] = await Promise.all([userResponse.json(), teamResponse.json()]);
-      if (!['captain', 'admin'].includes((user.role || '').toLowerCase()) || !data.team) {
-        document.getElementById('team-settings-status').className = 'team-settings-status is-error';
-        document.getElementById('team-settings-status').textContent = 'No team is assigned to this captain.';
+      const data = await teamResponse.json();
+      if (!data.team) {
+        const status = document.getElementById('team-settings-status');
+        status.className = 'team-settings-status is-error';
+        status.textContent = 'No team is assigned to this captain.';
         return;
       }
-
-      document.getElementById('team-page-username').textContent = user.username || 'Captain';
-      document.getElementById('team-page-role').textContent = (user.role || 'Captain')
-        .replace(/^./, character => character.toUpperCase());
-      if (user.avatar_url) document.getElementById('team-page-user-avatar').src = user.avatar_url;
-      document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
       document.getElementById('team-name-input').value = data.team.name || '';
       setImagePreview(data.team.imageUrl);
+
+      fetch('/api/user', { cache: 'no-store' })
+        .then(response => response.ok ? response.json() : null)
+        .then(user => {
+          if (!user) return;
+          document.getElementById('team-page-username').textContent = user.username || 'Captain';
+          document.getElementById('team-page-role').textContent = (user.role || 'Captain')
+            .replace(/^./, character => character.toUpperCase());
+          if (user.avatar_url) document.getElementById('team-page-user-avatar').src = user.avatar_url;
+          document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
+        })
+        .catch(error => console.error('Could not load team page user:', error));
     }
 
     document.getElementById('team-image-input').addEventListener('change', event => {
