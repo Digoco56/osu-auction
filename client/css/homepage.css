@@ -1046,7 +1046,7 @@ footer {
 
 .players-heading-actions {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.75rem;

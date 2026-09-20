@@ -1,68 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Players | osu! Auction</title>
-  <link rel="stylesheet" href="css/homepage.css" />
-</head>
-<body>
-  <div class="dashboard-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">o!</div>
-        <span>osu! Auction</span>
-      </div>
-      <nav>
-        <a href="/dashboard.html">Home</a>
-        <a href="/players.html">Players</a>
-        <a href="/teams.html">Teams</a>
-        <a href="/mappool.html">Mappool</a>
-        <a href="#">Rules</a>
-        <a id="admin-nav-link" href="/admin.html" class="nav-admin-link" hidden>Admin Panel</a>
-      </nav>
-      <div class="account-area">
-        <div class="user-pill">
-          <img id="dashboard-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar" />
-          <div>
-            <span id="dashboard-username">Player</span>
-            <span id="user-role" class="user-role">Player</span>
-          </div>
-        </div>
-        <a href="/logout" class="logout-link">Logout</a>
-      </div>
-    </header>
-
-    <main class="dashboard-content">
-      <section class="dashboard-heading" aria-labelledby="players-title">
-        <div>
-          <p class="eyebrow">Registered players</p>
-          <h1 id="players-title">Players</h1>
-        </div>
-        <div class="players-heading-actions">
-          <label class="players-sort-control" for="players-sort">
-            <span>Sort by</span>
-            <select id="players-sort">
-              <option value="rank-desc">Rank: highest to lowest</option>
-              <option value="rank-asc">Rank: lowest to highest</option>
-              <option value="name-asc">Name: A–Z</option>
-              <option value="name-desc">Name: Z–A</option>
-              <option value="registered-asc">Registration: oldest first</option>
-              <option value="registered-desc">Registration: newest first</option>
-            </select>
-          </label>
-          <p id="players-count" class="timezone-note">Loading players</p>
-        </div>
-      </section>
-
-      <section id="players-directory" class="players-directory" aria-live="polite">
-        <p class="empty-lineup">Loading registered players...</p>
-      </section>
-    </main>
-  </div>
-  <script src="js/players.js"></script>
-  <script>
-/*     function formatRank(rank) {
+function formatRank(rank) {
       if (rank == null || Number.isNaN(Number(rank))) return 'Unavailable';
       return `#${Math.round(Number(rank)).toLocaleString('en-US')}`;
     }
@@ -231,7 +167,4 @@
       }
     }
 
-    loadPlayersPage(); */
-  </script>
-</body>
-</html>
+    loadPlayersPage();
