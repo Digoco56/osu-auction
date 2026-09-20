@@ -99,7 +99,7 @@
         .catch(error => console.error('Could not load team page user:', error));
     }
 
-    document.getElementById('team-image-input').addEventListener('change', event => {
+    document.getElementById('team-image-input').addEventListener('change', async event => {
       const file = event.target.files[0];
       if (!file) return;
       const status = document.getElementById('team-settings-status');
