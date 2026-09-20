@@ -3,8 +3,11 @@ const unassignedPlayerList = document.getElementById('unassigned-player-list');
 const teamManagementStatus = document.getElementById('team-management-status');
 const newTeamNameInput = document.getElementById('new-team-name');
 const createTeamButton = document.getElementById('create-team-button');
+const teamViewFilter = document.getElementById('team-view-filter');
+const unassignedPlayersSection = document.getElementById('unassigned-players-section');
 
 let managedTeams = [];
+let unassignedPlayers = [];
 
 function setTeamManagementStatus(message, statusClass = '') {
   teamManagementStatus.className = `status-message ${statusClass}`.trim();
@@ -198,12 +201,24 @@ async function loadTeamManagement() {
     if (!response.ok) throw new Error('Could not load teams.');
     const data = await response.json();
     managedTeams = data.teams;
-    renderUnassignedPlayers(data.unassignedPlayers);
-    teamManagementGrid.replaceChildren(...managedTeams.map(createTeamCard));
+    unassignedPlayers = data.unassignedPlayers;
+    renderTeamManagement();
   } catch (error) {
     setTeamManagementStatus(error.message, 'error');
   }
 }
+
+function renderTeamManagement() {
+  const view = teamViewFilter.value;
+  unassignedPlayersSection.hidden = view === 'teams';
+  teamManagementGrid.hidden = view === 'unassigned';
+  if (view !== 'teams') renderUnassignedPlayers(unassignedPlayers);
+  if (view !== 'unassigned') {
+    teamManagementGrid.replaceChildren(...managedTeams.map(createTeamCard));
+  }
+}
+
+teamViewFilter.addEventListener('change', renderTeamManagement);
 
 createTeamButton.addEventListener('click', async () => {
   const name = newTeamNameInput.value.trim();

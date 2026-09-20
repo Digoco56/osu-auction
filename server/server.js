@@ -680,7 +680,7 @@ app.get('/api/user/team', async (req, res) => {
 
     try {
         const teamResult = await db.query(`
-            SELECT t.team_id, t.name, t.captain_id
+            SELECT t.team_id, t.name, t.captain_id, t.image_url
             FROM teams t
             JOIN team_members tm ON tm.team_id = t.team_id
             WHERE tm.user_id = $1
@@ -697,6 +697,10 @@ app.get('/api/user/team', async (req, res) => {
                 u.user_id,
                 u.username,
                 u.avatar_url,
+                u.profile_country_code,
+                u.global_rank,
+                u.bws_rank,
+                u.bws_badge_count,
                 tm.team_role,
                 tm.auction_price,
                 tm.lineup_position,
@@ -712,7 +716,8 @@ app.get('/api/user/team', async (req, res) => {
             team: {
                 id: team.team_id,
                 name: team.name,
-                captainId: team.captain_id
+                captainId: team.captain_id,
+                imageUrl: team.image_url
             },
             lineup: lineupResult.rows
         });
@@ -722,15 +727,15 @@ app.get('/api/user/team', async (req, res) => {
     }
 });
 
-async function requireCaptain(req, res, next) {
+async function requireTeamManager(req, res, next) {
     if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
 
     const result = await db.query(
         'SELECT role FROM users WHERE user_id = $1',
         [req.session.user.id]
     );
-    if (result.rows[0]?.role !== 'captain') {
-        return res.status(403).json({ error: 'Captain access required' });
+    if (!['captain', 'admin'].includes(result.rows[0]?.role)) {
+        return res.status(403).json({ error: 'Captain or admin access required' });
     }
     next();
 }
@@ -751,7 +756,7 @@ function isValidTeamImage(imageData) {
         && Buffer.byteLength(imageData, 'utf8') <= 2 * 1024 * 1024;
 }
 
-app.get('/api/captain/team', requireCaptain, async (req, res) => {
+app.get('/api/captain/team', requireTeamManager, async (req, res) => {
     const team = await getCaptainTeam(req.session.user.id);
     res.json({
         team: team && {
@@ -762,7 +767,7 @@ app.get('/api/captain/team', requireCaptain, async (req, res) => {
     });
 });
 
-app.post('/api/captain/team', requireCaptain, express.json({ limit: '2mb' }), async (req, res) => {
+app.post('/api/captain/team', requireTeamManager, express.json({ limit: '2mb' }), async (req, res) => {
     const name = String(req.body.name || '').trim();
     if (!name || name.length > 80) {
         return res.status(400).json({ error: 'Team name must contain 1 to 80 characters.' });
@@ -798,7 +803,7 @@ app.post('/api/captain/team', requireCaptain, express.json({ limit: '2mb' }), as
     }
 });
 
-app.put('/api/captain/team', requireCaptain, express.json({ limit: '2mb' }), async (req, res) => {
+app.put('/api/captain/team', requireTeamManager, express.json({ limit: '2mb' }), async (req, res) => {
     const team = await getCaptainTeam(req.session.user.id);
     if (!team) return res.status(404).json({ error: 'You do not manage a team.' });
 

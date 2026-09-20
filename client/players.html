@@ -162,7 +162,7 @@
         document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
 
         const eligiblePlayers = players.filter(player => player.can_participate);
-        count.textContent = `${eligiblePlayers.length} eligible`;
+        count.textContent = `${eligiblePlayers.length} registered`;
         directory.replaceChildren(...players.map(createPlayerCard));
         if (players.length === 0) {
           const empty = document.createElement('p');

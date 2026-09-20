@@ -82,8 +82,16 @@
                 <input id="new-team-name" type="text" maxlength="80" placeholder="Enter team name">
                 <button class="button secondary-button" id="create-team-button" type="button">Create team</button>
             </div>
+            <div class="team-filter-row">
+                <label for="team-view-filter">Show</label>
+                <select id="team-view-filter">
+                    <option value="all">All</option>
+                    <option value="teams">Teams</option>
+                    <option value="unassigned">Unassigned players</option>
+                </select>
+            </div>
             <p class="status-message" id="team-management-status" role="status"></p>
-            <section class="team-management-section" aria-labelledby="unassigned-players-title">
+            <section class="team-management-section" id="unassigned-players-section" aria-labelledby="unassigned-players-title">
                 <h3 id="unassigned-players-title">Unassigned players</h3>
                 <div class="unassigned-player-list" id="unassigned-player-list"></div>
             </section>

@@ -79,13 +79,14 @@
         return;
       }
       const [user, data] = await Promise.all([userResponse.json(), teamResponse.json()]);
-      if ((user.role || '').toLowerCase() !== 'captain' || !data.team) {
+      if (!['captain', 'admin'].includes((user.role || '').toLowerCase()) || !data.team) {
         window.location.href = '/dashboard.html';
         return;
       }
 
       document.getElementById('team-page-username').textContent = user.username || 'Captain';
-      document.getElementById('team-page-role').textContent = 'Captain';
+      document.getElementById('team-page-role').textContent = (user.role || 'Captain')
+        .replace(/^./, character => character.toUpperCase());
       if (user.avatar_url) document.getElementById('team-page-user-avatar').src = user.avatar_url;
       document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
       document.getElementById('team-name-input').value = data.team.name;

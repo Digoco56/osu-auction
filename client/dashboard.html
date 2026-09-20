@@ -46,11 +46,6 @@
           </div>
           <div id="captain-team-action" class="captain-team-action" hidden>
             <button id="captain-create-team-button" class="btn btn-secondary" type="button">Create team</button>
-            <form id="captain-team-create-form" class="captain-team-create-form" hidden>
-              <label for="captain-team-name">Team name</label>
-              <input id="captain-team-name" type="text" maxlength="80" required>
-              <button class="btn btn-primary" type="submit">Create team</button>
-            </form>
             <a id="captain-manage-team-link" class="btn btn-primary" href="/team.html" hidden>Manage team</a>
             <p id="captain-team-message" class="captain-team-message" role="status"></p>
           </div>
@@ -83,103 +78,31 @@
       </div>
     </section>
 
-    <section class="content-grid">
-      <div class="panel card">
-        <div class="card-header">
-          <h3 id="team-lineup-title">Team lineup</h3>
-          <span id="team-lineup-status" class="badge">Loading</span>
-        </div>
-
-        <div id="team-lineup" class="team-lineup" aria-live="polite"></div>
-      </div>
-
-      <div class="panel card">
-        <div class="card-header">
-          <h3>Session summary</h3>
-          <span class="badge badge-warn">Pending</span>
-        </div>
-
-        <div class="mini-list">
-          <div class="mini-row">
-            <strong>Draft status</strong>
-            <span>Round 3</span>
-          </div>
-          <div class="mini-row">
-            <strong>Current duty</strong>
-            <span>Available</span>
-          </div>
-          <div class="mini-row">
-            <strong>Next round</strong>
-            <span>Today, 18:30</span>
-          </div>
-          <div class="mini-row">
-            <strong>Rules</strong>
-            <span>Updated</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="content-grid">
-      <div class="panel card">
-        <div class="card-header">
-          <h3>Latest activity</h3>
-        </div>
-
-        <div class="timeline">
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div>
-              <div class="timeline-meta">18:05</div>
-              <div class="timeline-title">Your team drafted a new support player.</div>
-            </div>
-          </div>
-
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div>
-              <div class="timeline-meta">17:40</div>
-              <div class="timeline-title">Mappool was refreshed and published.</div>
-            </div>
-          </div>
-
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div>
-              <div class="timeline-meta">16:20</div>
-              <div class="timeline-title">Auction round 2 has started.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel card">
-        <div class="card-header">
-          <h3>Quick links</h3>
-        </div>
-
-        <div class="mini-list">
-          <div class="mini-row">
-            <strong>Mappool</strong>
-            <span>Open</span>
-          </div>
-          <div class="mini-row">
-            <strong>Rules</strong>
-            <span>Read</span>
-          </div>
-          <div class="mini-row">
-            <strong>Community</strong>
-            <span>Discord</span>
-          </div>
-          <div class="mini-row">
-            <strong>Admin panel</strong>
-            <span>Access</span>
-          </div>
-        </div>
-      </div>
+    <section class="team-dashboard panel" aria-labelledby="team-lineup-title">
+      <aside class="team-dashboard-summary">
+        <div id="team-dashboard-image-placeholder" class="team-dashboard-image-placeholder">Team</div>
+        <img id="team-dashboard-image" class="team-dashboard-image" alt="Team image" hidden>
+        <p class="eyebrow">Your team</p>
+        <h2 id="team-lineup-title">Team lineup</h2>
+        <span id="team-lineup-status" class="badge">Loading</span>
+      </aside>
+      <div id="team-lineup" class="team-dashboard-roster" aria-live="polite"></div>
     </section>
     </main>
   </div>
+
+  <dialog id="captain-team-dialog" class="team-create-dialog">
+    <form id="captain-team-create-form" class="team-create-dialog-form">
+      <div class="team-create-dialog-header">
+        <h2>Create team</h2>
+        <button id="captain-team-dialog-close" class="team-dialog-close" type="button" aria-label="Close">Close</button>
+      </div>
+      <label for="captain-team-name">Team name</label>
+      <input id="captain-team-name" type="text" maxlength="80" required>
+      <p id="captain-team-dialog-message" class="team-create-dialog-message" role="status"></p>
+      <button class="btn btn-primary" type="submit">Create team</button>
+    </form>
+  </dialog>
 
   <script>
     function formatUtcDateTime(isoDate) {
@@ -194,13 +117,17 @@
 
     async function loadCaptainTeamAction(user) {
       const actionEl = document.getElementById('captain-team-action');
-      if (!actionEl || (user.role || '').toLowerCase() !== 'captain') return;
+      const isTeamManager = ['captain', 'admin'].includes((user.role || '').toLowerCase());
+      if (!actionEl || !isTeamManager) return;
 
       const createButton = document.getElementById('captain-create-team-button');
+      const dialog = document.getElementById('captain-team-dialog');
       const createForm = document.getElementById('captain-team-create-form');
       const nameInput = document.getElementById('captain-team-name');
       const manageLink = document.getElementById('captain-manage-team-link');
       const messageEl = document.getElementById('captain-team-message');
+      const dialogMessageEl = document.getElementById('captain-team-dialog-message');
+      const closeDialogButton = document.getElementById('captain-team-dialog-close');
       actionEl.hidden = false;
 
       try {
@@ -210,18 +137,19 @@
 
         if (data.team) {
           createButton.hidden = true;
-          createForm.hidden = true;
           manageLink.hidden = false;
           messageEl.textContent = `Managing ${data.team.name}.`;
           return;
         }
 
         createButton.addEventListener('click', () => {
-          createButton.hidden = true;
-          createForm.hidden = false;
           messageEl.className = 'captain-team-message';
+          dialogMessageEl.className = 'team-create-dialog-message';
+          dialogMessageEl.textContent = '';
+          dialog.showModal();
           nameInput.focus();
         });
+        closeDialogButton.addEventListener('click', () => dialog.close());
         createForm.addEventListener('submit', async event => {
           event.preventDefault();
           const name = nameInput.value.trim();
@@ -229,8 +157,8 @@
 
           const submitButton = createForm.querySelector('button[type="submit"]');
           submitButton.disabled = true;
-          messageEl.className = 'captain-team-message';
-          messageEl.textContent = 'Creating team...';
+          dialogMessageEl.className = 'team-create-dialog-message';
+          dialogMessageEl.textContent = 'Creating team...';
           try {
             const createResponse = await fetch('/api/captain/team', {
               method: 'POST',
@@ -241,8 +169,8 @@
             if (!createResponse.ok) throw new Error(result?.error || 'Could not create team.');
             window.location.href = '/team.html';
           } catch (error) {
-            messageEl.className = 'captain-team-message is-error';
-            messageEl.textContent = error.message;
+            dialogMessageEl.className = 'team-create-dialog-message is-error';
+            dialogMessageEl.textContent = error.message;
           } finally {
             submitButton.disabled = false;
           }
@@ -366,7 +294,7 @@
 
     function createPlayerRow(player) {
       const playerRow = document.createElement('div');
-      playerRow.className = 'player-row';
+      playerRow.className = 'team-roster-row';
 
       const playerMain = document.createElement('div');
       playerMain.className = 'player-main';
@@ -375,6 +303,16 @@
       avatar.className = 'avatar';
       avatar.src = player.avatar_url || `https://a.ppy.sh/${player.user_id}`;
       avatar.alt = `${player.username || 'Player'} avatar`;
+
+      const flag = document.createElement('img');
+      flag.className = 'team-roster-flag';
+      const countryCode = String(player.profile_country_code || '').toUpperCase();
+      if (/^[A-Z]{2}$/.test(countryCode)) {
+        flag.src = `https://osuflags.omkserver.nl/${countryCode}-32.png`;
+        flag.alt = countryCode;
+      } else {
+        flag.hidden = true;
+      }
 
       const playerDetails = document.createElement('div');
       const playerName = document.createElement('div');
@@ -386,15 +324,17 @@
       playerRole.textContent = player.is_captain ? 'Captain' : (player.team_role || 'Player');
 
       playerDetails.append(playerName, playerRole);
-      playerMain.append(avatar, playerDetails);
+      playerMain.append(avatar, flag, playerDetails);
 
-      const playerPrice = document.createElement('div');
-      playerPrice.className = 'player-price';
-      playerPrice.textContent = player.auction_price == null
-        ? '—'
-        : Number(player.auction_price).toLocaleString('en-US');
+      const playerRanks = document.createElement('div');
+      playerRanks.className = 'team-roster-ranks';
+      const globalRank = document.createElement('span');
+      globalRank.textContent = `Global ${player.global_rank == null ? '—' : `#${Number(player.global_rank).toLocaleString('en-US')}`}`;
+      const bwsRank = document.createElement('span');
+      bwsRank.textContent = `BWS ${player.bws_badge_count > 0 && player.bws_rank != null ? `#${Math.round(Number(player.bws_rank)).toLocaleString('en-US')}` : '—'}`;
+      playerRanks.append(globalRank, bwsRank);
 
-      playerRow.append(playerMain, playerPrice);
+      playerRow.append(playerMain, playerRanks);
       return playerRow;
     }
 
@@ -402,6 +342,8 @@
       const lineupEl = document.getElementById('team-lineup');
       const titleEl = document.getElementById('team-lineup-title');
       const playerCountEl = document.getElementById('team-player-count');
+      const teamImage = document.getElementById('team-dashboard-image');
+      const teamImagePlaceholder = document.getElementById('team-dashboard-image-placeholder');
       if (!lineupEl) return;
 
       try {
@@ -414,6 +356,8 @@
         if (!data.team) {
           if (titleEl) titleEl.textContent = 'Team lineup';
           if (playerCountEl) playerCountEl.textContent = '0';
+          if (teamImage) teamImage.hidden = true;
+          if (teamImagePlaceholder) teamImagePlaceholder.hidden = false;
           setTeamLineupStatus('No team', 'badge-muted');
           addEmptyLineupMessage('You have not been assigned to a team yet.');
           return;
@@ -421,6 +365,11 @@
 
         if (titleEl) titleEl.textContent = data.team.name;
         if (playerCountEl) playerCountEl.textContent = String(data.lineup.length);
+        if (teamImage && teamImagePlaceholder) {
+          teamImage.hidden = !data.team.imageUrl;
+          teamImagePlaceholder.hidden = Boolean(data.team.imageUrl);
+          if (data.team.imageUrl) teamImage.src = data.team.imageUrl;
+        }
         setTeamLineupStatus(`${data.lineup.length} players`, 'badge-live');
         lineupEl.replaceChildren(...data.lineup.map(createPlayerRow));
       } catch (error) {

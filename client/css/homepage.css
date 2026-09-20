@@ -429,27 +429,9 @@ footer {
   padding: 0.6rem 0.9rem;
 }
 
-.captain-team-create-form {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
-.captain-team-create-form label,
 .captain-team-message {
   color: var(--text-soft);
   font-size: 0.85rem;
-}
-
-.captain-team-create-form input {
-  min-width: 180px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: rgba(17, 24, 39, 0.72);
-  color: var(--text);
-  padding: 0.55rem 0.65rem;
-  font: inherit;
 }
 
 .captain-team-message {
@@ -457,9 +439,78 @@ footer {
 }
 
 .captain-team-message.is-error,
-.team-settings-status.is-error {
+.team-settings-status.is-error,
+.team-create-dialog-message.is-error {
   color: #fecaca;
   font-weight: 700;
+}
+
+.team-create-dialog {
+  width: min(calc(100% - 2rem), 420px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: 0 22px 48px var(--shadow);
+  color: var(--text);
+  padding: 1.25rem;
+}
+
+.team-create-dialog::backdrop {
+  background: rgba(3, 7, 18, 0.7);
+}
+
+.team-create-dialog-form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.team-create-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.team-create-dialog-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.team-create-dialog-form label {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.team-create-dialog-form input {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(17, 24, 39, 0.72);
+  color: var(--text);
+  padding: 0.65rem 0.7rem;
+  font: inherit;
+}
+
+.team-create-dialog-form .btn {
+  width: fit-content;
+  margin: 0.25rem 0 0;
+}
+
+.team-dialog-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.team-create-dialog-message {
+  min-height: 1.2rem;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.85rem;
 }
 
 .team-settings {
@@ -632,6 +683,92 @@ footer {
   grid-template-columns: 1.2fr 0.8fr;
   gap: 1.25rem;
   margin-top: 1.5rem;
+}
+
+.team-dashboard {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) minmax(0, 5fr);
+  margin-top: 1.5rem;
+  overflow: hidden;
+}
+
+.team-dashboard-summary {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 0.65rem;
+  padding: 1.25rem;
+  border-right: 1px solid var(--line);
+  background: rgba(17, 24, 39, 0.52);
+}
+
+.team-dashboard-image,
+.team-dashboard-image-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.team-dashboard-image {
+  object-fit: cover;
+  object-position: center;
+}
+
+.team-dashboard-image-placeholder {
+  display: grid;
+  place-items: center;
+  background: rgba(124, 156, 255, 0.08);
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.team-dashboard-summary .eyebrow {
+  margin: 0.25rem 0 0;
+}
+
+.team-dashboard-summary h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.team-dashboard-roster {
+  display: grid;
+  align-content: start;
+}
+
+.team-roster-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.team-roster-row:last-child {
+  border-bottom: 0;
+}
+
+.team-roster-flag {
+  width: 1.5rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.team-roster-ranks {
+  display: grid;
+  justify-items: end;
+  gap: 0.18rem;
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .card {
@@ -942,6 +1079,22 @@ footer {
 @media (max-width: 900px) {
   .content-grid {
     grid-template-columns: 1fr;
+  }
+
+  .team-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .team-dashboard-summary {
+    grid-template-columns: 6rem 1fr;
+    align-items: center;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .team-dashboard-image,
+  .team-dashboard-image-placeholder {
+    grid-row: span 3;
   }
 
   .stats-grid {

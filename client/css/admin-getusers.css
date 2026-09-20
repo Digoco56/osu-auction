@@ -148,6 +148,18 @@ textarea {
     margin-bottom: 0.25rem;
 }
 
+.team-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.9rem;
+}
+
+.team-filter-row label {
+    color: var(--admin-muted);
+    font-size: 0.9rem;
+}
+
 .team-create-row label {
     color: var(--admin-muted);
     font-size: 0.9rem;
