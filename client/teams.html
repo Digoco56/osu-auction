@@ -37,7 +37,17 @@
       const details = document.createElement('div');
       const name = document.createElement('h2'); name.textContent = team.name;
       const captain = document.createElement('p'); captain.textContent = team.captainUsername ? `Captain: ${team.captainUsername}` : 'No captain assigned';
-      const count = document.createElement('p'); count.textContent = `${team.memberCount} players`;
+      const count = document.createElement('button');
+      count.className = 'team-member-count';
+      count.type = 'button';
+      count.textContent = `${team.memberCount} players`;
+      const tooltip = document.createElement('span');
+      tooltip.className = 'team-member-tooltip';
+      tooltip.textContent = team.members.map(member => {
+        const rank = member.globalRank == null ? 'Global —' : `Global #${Number(member.globalRank).toLocaleString('en-US')}`;
+        return `${member.username} · ${member.role} · ${rank}`;
+      }).join('\n');
+      count.append(tooltip);
       details.append(name, captain, count);
       card.append(image, placeholder, details);
       return card;

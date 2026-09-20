@@ -887,10 +887,22 @@ app.get('/api/teams', async (req, res) => {
             t.name,
             t.image_url,
             captain.username AS captain_username,
-            COUNT(tm.user_id)::INTEGER AS member_count
+            COUNT(tm.user_id)::INTEGER AS member_count,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'username', member.username,
+                        'role', member.role,
+                        'globalRank', member.global_rank
+                    )
+                    ORDER BY member.username
+                ) FILTER (WHERE member.user_id IS NOT NULL),
+                '[]'::json
+            ) AS members
         FROM teams t
         LEFT JOIN users captain ON captain.user_id = t.captain_id
         LEFT JOIN team_members tm ON tm.team_id = t.team_id
+        LEFT JOIN users member ON member.user_id = tm.user_id
         GROUP BY t.team_id, captain.username
         HAVING COUNT(tm.user_id) > 0
         ORDER BY t.name
@@ -900,7 +912,8 @@ app.get('/api/teams', async (req, res) => {
         name: team.name,
         imageUrl: team.image_url,
         captainUsername: team.captain_username,
-        memberCount: team.member_count
+        memberCount: team.member_count,
+        members: team.members
     })));
 });
 
@@ -1457,13 +1470,20 @@ async function assignPlayerToTeam(userId, destinationTeamId) {
     try {
         await client.query('BEGIN');
         const [playerResult, captainResult] = await Promise.all([
-            client.query('SELECT role, is_registered_player FROM users WHERE user_id = $1', [userId]),
+            client.query(
+                `SELECT role, is_registered_player, player_eligibility_status, participation_override
+                 FROM users WHERE user_id = $1`,
+                [userId]
+            ),
             client.query('SELECT team_id FROM teams WHERE captain_id = $1', [userId])
         ]);
         const player = playerResult.rows[0];
         const captainTeamId = captainResult.rows[0]?.team_id;
         if (!player?.is_registered_player) {
             throw Object.assign(new Error('Registered player not found.'), { status: 404 });
+        }
+        if (destinationTeamId !== null && !canPlayerParticipate(player.player_eligibility_status, player.participation_override)) {
+            throw Object.assign(new Error('This player cannot participate and cannot be assigned to a team.'), { status: 409 });
         }
         if (captainTeamId && Number(captainTeamId) !== Number(destinationTeamId)) {
             throw Object.assign(new Error('A team captain cannot be moved or unassigned from their team.'), { status: 409 });
@@ -1503,14 +1523,18 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
                 t.image_url,
                 u.user_id,
                 u.username,
-                u.avatar_url
+                u.avatar_url,
+                u.role,
+                u.player_eligibility_status,
+                u.participation_override
             FROM teams t
             LEFT JOIN team_members tm ON tm.team_id = t.team_id
             LEFT JOIN users u ON u.user_id = tm.user_id
             ORDER BY t.name, u.username
         `),
         db.query(`
-            SELECT u.user_id, u.username, u.avatar_url
+                 SELECT u.user_id, u.username, u.avatar_url, u.role,
+                     u.player_eligibility_status, u.participation_override
             FROM users u
             LEFT JOIN team_members tm ON tm.user_id = u.user_id
             WHERE u.is_registered_player = TRUE
@@ -1533,7 +1557,9 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
             teamsById.get(row.team_id).members.push({
                 id: row.user_id,
                 username: row.username,
-                avatarUrl: row.avatar_url
+                avatarUrl: row.avatar_url,
+                role: row.role,
+                canParticipate: canPlayerParticipate(row.player_eligibility_status, row.participation_override)
             });
         }
     }
@@ -1543,7 +1569,9 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
         unassignedPlayers: unassignedRows.rows.map(player => ({
             id: player.user_id,
             username: player.username,
-            avatarUrl: player.avatar_url
+            avatarUrl: player.avatar_url,
+            role: player.role,
+            canParticipate: canPlayerParticipate(player.player_eligibility_status, player.participation_override)
         }))
     });
 });

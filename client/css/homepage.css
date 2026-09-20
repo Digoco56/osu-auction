@@ -652,6 +652,49 @@ footer {
   font-size: 0.8rem;
 }
 
+.team-member-count {
+  position: relative;
+  margin-top: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--primary-soft);
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: help;
+}
+
+.team-member-tooltip {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  bottom: calc(100% + 0.5rem);
+  width: max-content;
+  max-width: 15rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-strong);
+  box-shadow: 0 12px 28px var(--shadow);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-line;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.25rem);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.team-member-count:hover .team-member-tooltip,
+.team-member-count:focus-visible .team-member-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .team-settings {
   display: grid;
   grid-template-columns: 11rem minmax(0, 1fr);

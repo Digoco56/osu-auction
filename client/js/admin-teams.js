@@ -24,6 +24,26 @@ function createPlayerAvatar(player) {
   return avatar;
 }
 
+function createPlayerInfo(player) {
+  const playerInfo = document.createElement('div');
+  playerInfo.className = 'team-member-info';
+  playerInfo.classList.toggle('is-ineligible', player.canParticipate === false);
+  const details = document.createElement('div');
+  const name = document.createElement('span');
+  name.textContent = player.username;
+  const role = document.createElement('small');
+  role.textContent = (player.role || 'player').replace(/^./, character => character.toUpperCase());
+  details.append(name, role);
+  if (player.canParticipate === false) {
+    const marker = document.createElement('small');
+    marker.className = 'team-participation-warning';
+    marker.textContent = 'Cannot participate';
+    details.append(marker);
+  }
+  playerInfo.append(createPlayerAvatar(player), details);
+  return playerInfo;
+}
+
 function createDestinationSelect(selectedTeamId, includeUnassigned) {
   const select = document.createElement('select');
   select.className = 'team-destination-select';
@@ -48,17 +68,16 @@ async function requestTeamChange(url, options) {
 function createMemberRow(player, teamId) {
   const row = document.createElement('div');
   row.className = 'team-member-row';
-  const playerInfo = document.createElement('div');
-  playerInfo.className = 'team-member-info';
-  const name = document.createElement('span');
-  name.textContent = player.username;
-  playerInfo.append(createPlayerAvatar(player), name);
+  const playerInfo = createPlayerInfo(player);
 
   const destination = createDestinationSelect(teamId, true);
   const moveButton = document.createElement('button');
   moveButton.className = 'team-action-button';
   moveButton.type = 'button';
   moveButton.textContent = 'Move';
+  const isIneligible = player.canParticipate === false;
+  destination.disabled = isIneligible;
+  moveButton.disabled = isIneligible;
   moveButton.addEventListener('click', async () => {
     moveButton.disabled = true;
     try {
@@ -195,17 +214,16 @@ function renderUnassignedPlayers(players) {
   players.forEach(player => {
     const row = document.createElement('div');
     row.className = 'team-member-row';
-    const playerInfo = document.createElement('div');
-    playerInfo.className = 'team-member-info';
-    const name = document.createElement('span');
-    name.textContent = player.username;
-    playerInfo.append(createPlayerAvatar(player), name);
+    const playerInfo = createPlayerInfo(player);
 
     const destination = createDestinationSelect(null, false);
     const assignButton = document.createElement('button');
     assignButton.className = 'team-action-button';
     assignButton.type = 'button';
     assignButton.textContent = 'Assign';
+    const isIneligible = player.canParticipate === false;
+    destination.disabled = isIneligible;
+    assignButton.disabled = isIneligible;
     assignButton.addEventListener('click', async () => {
       if (!destination.value) {
         setTeamManagementStatus('Choose a team first.', 'warning');
