@@ -2,8 +2,8 @@ window.openTeamImageEditor = async function openTeamImageEditor(file) {
   if (!file || !/^image\/(png|jpeg|webp)$/.test(file.type)) {
     throw new Error('Use a PNG, JPEG, or WebP image.');
   }
-  if (file.size > 1400000) {
-    throw new Error('Use an image smaller than 1.4 MB.');
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Use an image smaller than 10 MB.');
   }
 
   const sourceUrl = URL.createObjectURL(file);
@@ -19,7 +19,7 @@ window.openTeamImageEditor = async function openTeamImageEditor(file) {
   dialog.innerHTML = `
     <div class="image-editor-form">
       <div class="image-editor-header"><h2>Adjust team image</h2><button class="team-dialog-close image-editor-cancel" type="button">Close</button></div>
-      <canvas width="360" height="360"></canvas>
+      <canvas width="600" height="600"></canvas>
       <label>Zoom <input class="image-editor-zoom" type="range" min="1" max="3" step="0.01" value="1"></label>
       <label>Horizontal <input class="image-editor-x" type="range" min="-1" max="1" step="0.01" value="0"></label>
       <label>Vertical <input class="image-editor-y" type="range" min="-1" max="1" step="0.01" value="0"></label>
@@ -65,7 +65,7 @@ window.openTeamImageEditor = async function openTeamImageEditor(file) {
       dialog.close();
     });
     dialog.addEventListener('close', () => {
-      const imageData = shouldSave ? canvas.toDataURL('image/jpeg', 0.9) : null;
+      const imageData = shouldSave ? canvas.toDataURL('image/jpeg', 0.92) : null;
       URL.revokeObjectURL(sourceUrl);
       dialog.remove();
       resolve(imageData);

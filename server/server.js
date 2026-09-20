@@ -742,18 +742,25 @@ async function requireTeamManager(req, res, next) {
 
 async function getCaptainTeam(userId) {
     const result = await db.query(`
-        SELECT team_id, name, image_url
-        FROM teams
-        WHERE captain_id = $1
+        SELECT t.team_id, t.name, t.image_url, t.captain_id
+        FROM teams t
+        LEFT JOIN team_members tm ON tm.team_id = t.team_id AND tm.user_id = $1
+        WHERE t.captain_id = $1
+           OR tm.team_role = 'Captain'
+        ORDER BY CASE WHEN t.captain_id = $1 THEN 0 ELSE 1 END
         LIMIT 1
     `, [userId]);
-    return result.rows[0] || null;
+    const team = result.rows[0];
+    if (team && !team.captain_id) {
+        await db.query('UPDATE teams SET captain_id = $1 WHERE team_id = $2', [userId, team.team_id]);
+    }
+    return team || null;
 }
 
 function isValidTeamImage(imageData) {
     return typeof imageData === 'string'
         && /^data:image\/(png|jpeg|webp);base64,/i.test(imageData)
-        && Buffer.byteLength(imageData, 'utf8') <= 2 * 1024 * 1024;
+        && Buffer.byteLength(imageData, 'utf8') <= 3 * 1024 * 1024;
 }
 
 app.get('/api/captain/team', requireTeamManager, async (req, res) => {
@@ -814,7 +821,7 @@ app.put('/api/captain/team', requireTeamManager, express.json({ limit: '2mb' }),
         return res.status(400).json({ error: 'Team name must contain 1 to 80 characters.' });
     }
     if (hasImageUpdate && imageData !== null && !isValidTeamImage(imageData)) {
-        return res.status(400).json({ error: 'Use a PNG, JPEG, or WebP image smaller than 2 MB.' });
+        return res.status(400).json({ error: 'Use a PNG, JPEG, or WebP image smaller than 3 MB after cropping.' });
     }
 
     try {
@@ -1570,7 +1577,7 @@ app.put('/admin/teams/:teamId', requireAdmin, express.json({ limit: '2mb' }), as
         return res.status(400).json({ error: 'A valid team name is required.' });
     }
     if (hasImageUpdate && imageData !== null && !isValidTeamImage(imageData)) {
-        return res.status(400).json({ error: 'Use a PNG, JPEG, or WebP image smaller than 2 MB.' });
+        return res.status(400).json({ error: 'Use a PNG, JPEG, or WebP image smaller than 3 MB after cropping.' });
     }
 
     try {

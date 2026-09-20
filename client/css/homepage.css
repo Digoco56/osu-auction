@@ -433,6 +433,19 @@ footer {
   padding: 0.6rem 0.9rem;
 }
 
+#captain-create-team-button {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  box-shadow: 0 10px 24px rgba(124, 156, 255, 0.28);
+  color: var(--text-inverse);
+  font-size: 0.95rem;
+  padding: 0.72rem 1.05rem;
+}
+
+#captain-create-team-button:hover {
+  box-shadow: 0 14px 30px rgba(124, 156, 255, 0.42);
+}
+
 .captain-team-message {
   color: var(--text-soft);
   font-size: 0.85rem;
@@ -440,6 +453,11 @@ footer {
 
 .captain-team-message {
   margin: 0;
+}
+
+.captain-team-name {
+  color: var(--primary-soft);
+  font-weight: 800;
 }
 
 .captain-team-message.is-error,

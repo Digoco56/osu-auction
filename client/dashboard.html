@@ -15,7 +15,7 @@
       </div>
 
       <nav>
-        <a href="/">Home</a>
+        <a href="/dashboard.html">Home</a>
         <a href="/players.html">Players</a>
         <a href="/teams.html">Teams</a>
         <a href="/mappool.html">Mappool</a>
@@ -137,7 +137,11 @@
         if (data.team) {
           createButton.hidden = true;
           manageLink.hidden = false;
-          messageEl.textContent = `Managing ${data.team.name}.`;
+          messageEl.replaceChildren('Managing ');
+          const teamName = document.createElement('span');
+          teamName.className = 'captain-team-name';
+          teamName.textContent = data.team.name;
+          messageEl.append(teamName, '.');
           return;
         }
 
