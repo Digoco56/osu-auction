@@ -416,6 +416,144 @@ footer {
   font-weight: 700;
 }
 
+.captain-team-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.captain-team-action .btn {
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+}
+
+.captain-team-create-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.captain-team-create-form label,
+.captain-team-message {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.captain-team-create-form input {
+  min-width: 180px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(17, 24, 39, 0.72);
+  color: var(--text);
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+}
+
+.captain-team-message {
+  margin: 0;
+}
+
+.captain-team-message.is-error,
+.team-settings-status.is-error {
+  color: #fecaca;
+  font-weight: 700;
+}
+
+.team-settings {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 2rem;
+  max-width: 720px;
+  padding: 1.5rem;
+}
+
+.team-image-control {
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+}
+
+.team-image-preview,
+.team-image-placeholder {
+  width: 10rem;
+  height: 10rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.team-image-preview {
+  object-fit: cover;
+  object-position: center;
+}
+
+.team-image-placeholder {
+  display: grid;
+  place-items: center;
+  background: rgba(124, 156, 255, 0.08);
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.team-image-upload,
+.team-text-button {
+  border: 0;
+  background: transparent;
+  color: var(--primary-soft);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.team-image-upload:hover,
+.team-text-button:hover {
+  color: var(--text);
+}
+
+.team-settings-form {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+}
+
+.team-settings-form label {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.team-settings-form input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(17, 24, 39, 0.72);
+  color: var(--text);
+  padding: 0.7rem 0.75rem;
+  font: inherit;
+}
+
+.team-settings-form .btn {
+  width: fit-content;
+  margin: 0.5rem 0 0;
+}
+
+.team-settings-status {
+  min-height: 1.25rem;
+  margin: 0.4rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.team-settings-status.is-success {
+  color: #bbf7d0;
+  font-weight: 700;
+}
+
 .timezone-note {
   margin: 0;
   padding: 0.6rem 0.8rem;
@@ -854,5 +992,13 @@ footer {
   .account-area {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .team-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .team-image-control {
+    justify-items: start;
   }
 }

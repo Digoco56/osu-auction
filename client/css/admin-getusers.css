@@ -140,6 +140,133 @@ textarea {
     margin-bottom: 0.25rem;
 }
 
+.team-create-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 0.25rem;
+}
+
+.team-create-row label {
+    color: var(--admin-muted);
+    font-size: 0.9rem;
+}
+
+.team-create-row input {
+    min-width: 220px;
+}
+
+.team-management-section {
+    margin-top: 1.25rem;
+}
+
+.team-management-section h3 {
+    margin: 0 0 0.65rem;
+    font-size: 1rem;
+}
+
+.team-management-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.team-management-card,
+.unassigned-player-list {
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    background: rgba(17, 24, 39, 0.45);
+}
+
+.team-management-card {
+    overflow: hidden;
+}
+
+.team-management-card-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.45rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.team-management-card-header input {
+    min-width: 0;
+}
+
+.team-member-list,
+.unassigned-player-list {
+    display: grid;
+}
+
+.team-member-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.75fr) auto;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.team-member-row:last-child {
+    border-bottom: 0;
+}
+
+.team-member-info {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 0.55rem;
+    color: var(--text);
+    font-weight: 700;
+}
+
+.team-member-info span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.team-management-avatar {
+    width: 1.9rem;
+    height: 1.9rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.team-action-button {
+    border: 1px solid var(--admin-border);
+    border-radius: 4px;
+    background: rgba(124, 156, 255, 0.12);
+    color: var(--primary-soft);
+    padding: 0.42rem 0.55rem;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.team-action-button:hover {
+    border-color: var(--primary);
+    color: var(--text);
+}
+
+.team-delete-button {
+    border-color: rgba(239, 68, 68, 0.45);
+    background: rgba(239, 68, 68, 0.1);
+    color: #fecaca;
+}
+
+.team-empty-state {
+    margin: 0;
+    padding: 0.85rem;
+    color: var(--admin-muted);
+    font-size: 0.9rem;
+}
+
 .registration-next-update {
     margin: 0;
     color: var(--admin-muted);
@@ -348,6 +475,18 @@ button:disabled {
 
     .add-sheet-row > input {
         flex: 1 1 100%;
+    }
+
+    .team-management-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .team-member-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .team-member-row select {
+        grid-column: 1 / -1;
     }
 }
 

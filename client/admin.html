@@ -15,6 +15,7 @@
     </header>
     <nav class="admin-nav" aria-label="Admin sections">
         <button class="admin-nav-button is-active" type="button" data-panel="users-panel">Users</button>
+        <button class="admin-nav-button" type="button" data-panel="teams-panel">Teams</button>
         <button class="admin-nav-button" type="button" data-panel="registration-panel">Registration</button>
         <button class="admin-nav-button" type="button" data-panel="visibility-panel">Mappool visibility</button>
     </nav>
@@ -57,6 +58,7 @@
                             <th>Avatar</th>
                             <th>Role</th>
                             <th>Modify role</th>
+                            <th>Participation</th>
                             <th>Team</th>
                         </tr>
                     </thead>
@@ -66,6 +68,26 @@
             <p class="empty-state is-hidden" id="user-empty-state">No users match the selected filters.</p>
             <button class="button" id="save-roles-button" type="button">Save changes</button>
             <p class="status-message" id="user-status" role="status"></p>
+        </section>
+
+        <section class="admin-panel" id="teams-panel" hidden>
+            <div class="panel-heading">
+                <div>
+                    <h2>Teams</h2>
+                    <p class="panel-description">Create teams, manage names, and move registered players between rosters.</p>
+                </div>
+            </div>
+            <div class="team-create-row">
+                <label for="new-team-name">Team name</label>
+                <input id="new-team-name" type="text" maxlength="80" placeholder="Enter team name">
+                <button class="button secondary-button" id="create-team-button" type="button">Create team</button>
+            </div>
+            <p class="status-message" id="team-management-status" role="status"></p>
+            <section class="team-management-section" aria-labelledby="unassigned-players-title">
+                <h3 id="unassigned-players-title">Unassigned players</h3>
+                <div class="unassigned-player-list" id="unassigned-player-list"></div>
+            </section>
+            <section class="team-management-grid" id="team-management-grid" aria-live="polite"></section>
         </section>
 
         <section class="admin-panel" id="registration-panel" hidden>
@@ -114,6 +136,7 @@
     </main>
 
     <script src="js/admin-getusers.js"></script>
+    <script src="js/admin-teams.js"></script>
     <script src="js/admin-registration.js"></script>
     <script src="js/admin-mappool.js"></script>
 

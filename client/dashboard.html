@@ -44,6 +44,16 @@
             <a id="player-registration-link" href="/auth/discord" class="btn btn-primary" hidden>Register as player</a>
             <p id="player-registration-message" class="player-registration-message" role="status"></p>
           </div>
+          <div id="captain-team-action" class="captain-team-action" hidden>
+            <button id="captain-create-team-button" class="btn btn-secondary" type="button">Create team</button>
+            <form id="captain-team-create-form" class="captain-team-create-form" hidden>
+              <label for="captain-team-name">Team name</label>
+              <input id="captain-team-name" type="text" maxlength="80" required>
+              <button class="btn btn-primary" type="submit">Create team</button>
+            </form>
+            <a id="captain-manage-team-link" class="btn btn-primary" href="/team.html" hidden>Manage team</a>
+            <p id="captain-team-message" class="captain-team-message" role="status"></p>
+          </div>
         </div>
         <p class="timezone-note">All times are shown in UTC+0.</p>
       </section>
@@ -182,6 +192,66 @@
       }).format(new Date(isoDate))} UTC+0`;
     }
 
+    async function loadCaptainTeamAction(user) {
+      const actionEl = document.getElementById('captain-team-action');
+      if (!actionEl || (user.role || '').toLowerCase() !== 'captain') return;
+
+      const createButton = document.getElementById('captain-create-team-button');
+      const createForm = document.getElementById('captain-team-create-form');
+      const nameInput = document.getElementById('captain-team-name');
+      const manageLink = document.getElementById('captain-manage-team-link');
+      const messageEl = document.getElementById('captain-team-message');
+      actionEl.hidden = false;
+
+      try {
+        const response = await fetch('/api/captain/team', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Could not load captain team.');
+        const data = await response.json();
+
+        if (data.team) {
+          createButton.hidden = true;
+          createForm.hidden = true;
+          manageLink.hidden = false;
+          messageEl.textContent = `Managing ${data.team.name}.`;
+          return;
+        }
+
+        createButton.addEventListener('click', () => {
+          createButton.hidden = true;
+          createForm.hidden = false;
+          messageEl.className = 'captain-team-message';
+          nameInput.focus();
+        });
+        createForm.addEventListener('submit', async event => {
+          event.preventDefault();
+          const name = nameInput.value.trim();
+          if (!name) return;
+
+          const submitButton = createForm.querySelector('button[type="submit"]');
+          submitButton.disabled = true;
+          messageEl.className = 'captain-team-message';
+          messageEl.textContent = 'Creating team...';
+          try {
+            const createResponse = await fetch('/api/captain/team', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name })
+            });
+            const result = await createResponse.json().catch(() => null);
+            if (!createResponse.ok) throw new Error(result?.error || 'Could not create team.');
+            window.location.href = '/team.html';
+          } catch (error) {
+            messageEl.className = 'captain-team-message is-error';
+            messageEl.textContent = error.message;
+          } finally {
+            submitButton.disabled = false;
+          }
+        });
+      } catch (error) {
+        messageEl.textContent = error.message;
+      }
+    }
+
     async function loadDashboardUser() {
       try {
         const response = await fetch('/api/user', { cache: 'no-store' });
@@ -213,16 +283,24 @@
           adminNavLink.hidden = !isAdmin;
         }
 
+        loadCaptainTeamAction(user);
+
         if (registrationLink && registrationMessage) {
           const registrationStatus = new URLSearchParams(window.location.search).get('registration');
           const isRegisteredPlayer = Boolean(user.isRegisteredPlayer);
+          const canParticipate = Boolean(user.canParticipate);
           const registrationWindow = user.registrationWindow || {};
           registrationLink.hidden = isRegisteredPlayer;
           registrationMessage.className = 'player-registration-message';
 
           if (isRegisteredPlayer) {
-            registrationMessage.classList.add('is-registered');
-            registrationMessage.textContent = 'You are registered as a player.';
+            if (canParticipate) {
+              registrationMessage.classList.add('is-registered');
+              registrationMessage.textContent = 'You are registered as a player.';
+            } else {
+              registrationMessage.classList.add('is-error');
+              registrationMessage.textContent = 'You are registered as a player but cannot participate.';
+            }
           } else {
             const registrationsOpen = registrationWindow.status === 'open';
             const isBwsIneligible = user.playerEligibilityStatus === 'bws-ineligible';

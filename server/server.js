@@ -15,7 +15,7 @@ const AA_COLUMN_INDEX = 26;
 const AB_COLUMN_INDEX = 27;
 const AC_COLUMN_INDEX = 28;
 const BWS_BADGE_CUTOFF = new Date('2025-04-01T00:00:00Z');
-const BWS_MIN_RANK = 26000;
+const BWS_MIN_RANK = 10000;
 const BWS_MAX_RANK = 99999;
 const BWS_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const REGISTRATION_START_AT_SEED = process.env.REGISTRATION_START_AT || null;
@@ -41,7 +41,8 @@ async function initializeDatabase() {
             bws_badge_count INTEGER,
             bws_calculated_at TIMESTAMPTZ,
             profile_country_code TEXT,
-            player_eligibility_status TEXT NOT NULL DEFAULT 'not_registered'
+            player_eligibility_status TEXT NOT NULL DEFAULT 'not_registered',
+            participation_override BOOLEAN
         );
         ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_id TEXT;
@@ -66,10 +67,15 @@ async function initializeDatabase() {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS bws_calculated_at TIMESTAMPTZ;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_country_code TEXT;
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS player_eligibility_status TEXT NOT NULL DEFAULT 'not_registered';
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS participation_override BOOLEAN;
                 UPDATE users
                 SET player_eligibility_status = 'registered'
                 WHERE is_registered_player = TRUE
                     AND player_eligibility_status = 'not_registered';
+                UPDATE users
+                SET is_registered_player = TRUE
+                WHERE player_eligibility_status = 'bws-ineligible'
+                    AND discord_id IS NOT NULL;
         CREATE UNIQUE INDEX IF NOT EXISTS users_discord_id_unique
             ON users (discord_id)
             WHERE discord_id IS NOT NULL;
@@ -80,8 +86,10 @@ async function initializeDatabase() {
             team_id BIGSERIAL PRIMARY KEY,
             name TEXT NOT NULL UNIQUE,
             captain_id BIGINT REFERENCES users(user_id) ON DELETE SET NULL,
+            image_url TEXT,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        ALTER TABLE teams ADD COLUMN IF NOT EXISTS image_url TEXT;
     `);
 
     await db.query(`
@@ -287,6 +295,12 @@ async function saveBwsEvaluation(userId, evaluation, eligibilityStatus, queryabl
     ]);
 }
 
+function canPlayerParticipate(eligibilityStatus, participationOverride) {
+    if (participationOverride === true) return true;
+    if (participationOverride === false) return false;
+    return eligibilityStatus === 'registered';
+}
+
 async function refreshRegisteredPlayerEligibility(userId, force = false) {
     if (!(await isRegistrationWindowOpen())) return;
 
@@ -306,33 +320,11 @@ async function refreshRegisteredPlayerEligibility(userId, force = false) {
     }
 
     const evaluation = await calculateBwsEligibility(userId);
-    if (evaluation.eligible) {
-        await saveBwsEvaluation(userId, evaluation, 'registered');
-        await db.query(`
-            UPDATE users
-            SET is_registered_player = TRUE
-            WHERE user_id = $1
-        `, [userId]);
-        return;
-    }
-
-    const client = await db.connect();
-    try {
-        await client.query('BEGIN');
-        await saveBwsEvaluation(userId, evaluation, 'bws-ineligible', client);
-        await client.query(`
-            UPDATE users
-            SET is_registered_player = FALSE
-            WHERE user_id = $1
-        `, [userId]);
-        await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
-        await client.query('COMMIT');
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
+    await saveBwsEvaluation(
+        userId,
+        evaluation,
+        evaluation.eligible ? 'registered' : 'bws-ineligible'
+    );
 }
 
 async function refreshAllPlayerEligibilities() {
@@ -344,7 +336,6 @@ async function refreshAllPlayerEligibilities() {
             SELECT user_id
             FROM users
             WHERE is_registered_player = TRUE
-               OR player_eligibility_status = 'bws-ineligible'
         `);
         for (const { user_id: userId } of result.rows) {
             try {
@@ -588,14 +579,6 @@ app.get('/auth/discord/callback', async (req, res) => {
             return res.redirect('/dashboard.html?registration=discord-required');
         }
 
-        const bwsEligibility = await calculateBwsEligibility(sessionUser.id);
-        if (!bwsEligibility.eligible) {
-            await saveBwsEvaluation(sessionUser.id, bwsEligibility, 'bws-ineligible');
-            delete req.session.discordOAuthState;
-            await saveSession(req);
-            return res.redirect('/dashboard.html?registration=bws-ineligible');
-        }
-
         const discordUser = discordUserResponse.data;
         const existingDiscordLink = await db.query(
             'SELECT user_id FROM users WHERE discord_id = $1 AND user_id <> $2',
@@ -605,6 +588,8 @@ app.get('/auth/discord/callback', async (req, res) => {
             return res.status(409).send('This Discord account is already linked to another osu! account.');
         }
 
+        const bwsEligibility = await calculateBwsEligibility(sessionUser.id);
+
         await db.query(`
             INSERT INTO users (
                 user_id, username, avatar_url, discord_id, discord_username,
@@ -612,7 +597,7 @@ app.get('/auth/discord/callback', async (req, res) => {
                 bws_badge_count, bws_calculated_at, profile_country_code,
                 player_eligibility_status
             )
-            VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), $6, $7, $8, NOW(), $9, 'registered')
+            VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), $6, $7, $8, NOW(), $9, $10)
             ON CONFLICT (user_id) DO UPDATE SET
                 username = EXCLUDED.username,
                 avatar_url = EXCLUDED.avatar_url,
@@ -625,7 +610,7 @@ app.get('/auth/discord/callback', async (req, res) => {
                 bws_badge_count = EXCLUDED.bws_badge_count,
                 bws_calculated_at = NOW(),
                 profile_country_code = EXCLUDED.profile_country_code,
-                player_eligibility_status = 'registered'
+                player_eligibility_status = EXCLUDED.player_eligibility_status
         `, [
             sessionUser.id,
             sessionUser.username,
@@ -635,12 +620,15 @@ app.get('/auth/discord/callback', async (req, res) => {
             bwsEligibility.bwsRank,
             bwsEligibility.globalRank,
             bwsEligibility.badgeCount,
-            bwsEligibility.countryCode
+            bwsEligibility.countryCode,
+            bwsEligibility.eligible ? 'registered' : 'bws-ineligible'
         ]);
 
         delete req.session.discordOAuthState;
         await saveSession(req);
-        res.redirect('/dashboard.html?registration=success');
+        res.redirect(bwsEligibility.eligible
+            ? '/dashboard.html?registration=success'
+            : '/dashboard.html?registration=bws-ineligible');
     } catch (error) {
         console.error('Discord authentication error:', error.response?.data || error.message);
         res.status(500).send('Discord authentication failed.');
@@ -662,7 +650,8 @@ app.get('/api/user', async (req, res) => {
     }
 
     const result = await db.query(
-        'SELECT role, is_registered_player, player_eligibility_status FROM users WHERE user_id = $1',
+        `SELECT role, is_registered_player, player_eligibility_status, participation_override
+         FROM users WHERE user_id = $1`,
         [req.session.user.id]
     );
     const registrationWindow = await getRegistrationWindow();
@@ -672,6 +661,10 @@ app.get('/api/user', async (req, res) => {
         role: result.rows[0]?.role || 'player',
         isRegisteredPlayer: Boolean(result.rows[0]?.is_registered_player),
         playerEligibilityStatus: result.rows[0]?.player_eligibility_status || 'not_registered',
+        canParticipate: canPlayerParticipate(
+            result.rows[0]?.player_eligibility_status,
+            result.rows[0]?.participation_override
+        ),
         registrationWindow: {
             status: registrationWindow.status,
             startAt: registrationWindow.startAt?.toISOString() || null,
@@ -729,6 +722,115 @@ app.get('/api/user/team', async (req, res) => {
     }
 });
 
+async function requireCaptain(req, res, next) {
+    if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+
+    const result = await db.query(
+        'SELECT role FROM users WHERE user_id = $1',
+        [req.session.user.id]
+    );
+    if (result.rows[0]?.role !== 'captain') {
+        return res.status(403).json({ error: 'Captain access required' });
+    }
+    next();
+}
+
+async function getCaptainTeam(userId) {
+    const result = await db.query(`
+        SELECT team_id, name, image_url
+        FROM teams
+        WHERE captain_id = $1
+        LIMIT 1
+    `, [userId]);
+    return result.rows[0] || null;
+}
+
+function isValidTeamImage(imageData) {
+    return typeof imageData === 'string'
+        && /^data:image\/(png|jpeg|webp);base64,/i.test(imageData)
+        && Buffer.byteLength(imageData, 'utf8') <= 2 * 1024 * 1024;
+}
+
+app.get('/api/captain/team', requireCaptain, async (req, res) => {
+    const team = await getCaptainTeam(req.session.user.id);
+    res.json({
+        team: team && {
+            id: team.team_id,
+            name: team.name,
+            imageUrl: team.image_url
+        }
+    });
+});
+
+app.post('/api/captain/team', requireCaptain, express.json({ limit: '2mb' }), async (req, res) => {
+    const name = String(req.body.name || '').trim();
+    if (!name || name.length > 80) {
+        return res.status(400).json({ error: 'Team name must contain 1 to 80 characters.' });
+    }
+    if (await getCaptainTeam(req.session.user.id)) {
+        return res.status(409).json({ error: 'You already manage a team.' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        const teamResult = await client.query(
+            'INSERT INTO teams (name, captain_id) VALUES ($1, $2) RETURNING team_id, name, image_url',
+            [name, req.session.user.id]
+        );
+        await client.query('DELETE FROM team_members WHERE user_id = $1', [req.session.user.id]);
+        await client.query(
+            'INSERT INTO team_members (team_id, user_id, team_role) VALUES ($1, $2, $3)',
+            [teamResult.rows[0].team_id, req.session.user.id, 'Captain']
+        );
+        await client.query('COMMIT');
+        const team = teamResult.rows[0];
+        res.status(201).json({ team: { id: team.team_id, name: team.name, imageUrl: team.image_url } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        if (error.code === '23505') {
+            return res.status(409).json({ error: 'This team name is already in use. Choose a different name.' });
+        }
+        console.error('Could not create captain team:', error.message);
+        res.status(500).json({ error: 'Could not create team.' });
+    } finally {
+        client.release();
+    }
+});
+
+app.put('/api/captain/team', requireCaptain, express.json({ limit: '2mb' }), async (req, res) => {
+    const team = await getCaptainTeam(req.session.user.id);
+    if (!team) return res.status(404).json({ error: 'You do not manage a team.' });
+
+    const name = String(req.body.name || '').trim();
+    const hasImageUpdate = Object.hasOwn(req.body, 'imageData');
+    const imageData = req.body.imageData;
+    if (!name || name.length > 80) {
+        return res.status(400).json({ error: 'Team name must contain 1 to 80 characters.' });
+    }
+    if (hasImageUpdate && imageData !== null && !isValidTeamImage(imageData)) {
+        return res.status(400).json({ error: 'Use a PNG, JPEG, or WebP image smaller than 2 MB.' });
+    }
+
+    try {
+        const result = await db.query(`
+            UPDATE teams
+            SET name = $1,
+                image_url = CASE WHEN $2 THEN $3 ELSE image_url END
+            WHERE team_id = $4
+            RETURNING team_id, name, image_url
+        `, [name, hasImageUpdate, hasImageUpdate ? imageData : null, team.team_id]);
+        const updated = result.rows[0];
+        res.json({ team: { id: updated.team_id, name: updated.name, imageUrl: updated.image_url } });
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(409).json({ error: 'This team name is already in use. Choose a different name.' });
+        }
+        console.error('Could not update captain team:', error.message);
+        res.status(500).json({ error: 'Could not update team.' });
+    }
+});
+
 app.get('/api/players', async (req, res) => {
     if (!req.session.user) {
         return res.status(401).json({ error: 'Not authenticated' });
@@ -746,15 +848,22 @@ app.get('/api/players', async (req, res) => {
             u.bws_rank,
             u.is_registered_player,
             u.player_eligibility_status,
+            u.participation_override,
             t.name AS team_name
         FROM users u
         LEFT JOIN team_members tm ON tm.user_id = u.user_id
         LEFT JOIN teams t ON t.team_id = tm.team_id
-                WHERE (u.is_registered_player = TRUE OR u.player_eligibility_status = 'bws-ineligible')
+                WHERE u.is_registered_player = TRUE
                     AND u.discord_id IS NOT NULL
         ORDER BY u.username
     `);
-    res.json(players.rows);
+    res.json(players.rows.map(player => ({
+        ...player,
+        can_participate: canPlayerParticipate(
+            player.player_eligibility_status,
+            player.participation_override
+        )
+    })));
 });
 
 // Logout route 
@@ -1221,7 +1330,9 @@ app.get('/admin/logged-users', async (req, res) => {
                                 LIMIT 1
                         )) AS avatar_url,
                         t.team_id,
-                        t.name AS team_name
+                        t.name AS team_name,
+                        u.player_eligibility_status,
+                        u.participation_override
                 FROM users u
                 LEFT JOIN team_members tm ON tm.user_id = u.user_id
                 LEFT JOIN teams t ON t.team_id = tm.team_id
@@ -1264,6 +1375,24 @@ app.post('/admin/set-role', express.json(), async (req, res) => {
     res.sendStatus(200);
   });
 
+app.post('/admin/set-participation', requireAdmin, express.json(), async (req, res) => {
+    const { userId, participationOverride } = req.body;
+    const parsedUserId = Number(userId);
+
+    if (!Number.isSafeInteger(parsedUserId) || parsedUserId < 1) {
+        return res.status(400).json({ error: 'A valid user is required' });
+    }
+    if (participationOverride !== null && typeof participationOverride !== 'boolean') {
+        return res.status(400).json({ error: 'Participation override must be true, false, or null.' });
+    }
+
+    await db.query(
+        'UPDATE users SET participation_override = $1 WHERE user_id = $2',
+        [participationOverride, parsedUserId]
+    );
+    res.sendStatus(204);
+});
+
 app.post('/admin/set-user-team', requireAdmin, express.json(), async (req, res) => {
     const { userId, teamId } = req.body;
     const parsedUserId = Number(userId);
@@ -1296,6 +1425,155 @@ app.post('/admin/set-user-team', requireAdmin, express.json(), async (req, res) 
         [parsedTeamId, parsedUserId]
     );
 
+    res.sendStatus(204);
+});
+
+app.get('/admin/team-management', requireAdmin, async (req, res) => {
+    const [teamRows, unassignedRows] = await Promise.all([
+        db.query(`
+            SELECT
+                t.team_id,
+                t.name AS team_name,
+                u.user_id,
+                u.username,
+                u.avatar_url
+            FROM teams t
+            LEFT JOIN team_members tm ON tm.team_id = t.team_id
+            LEFT JOIN users u ON u.user_id = tm.user_id
+            ORDER BY t.name, u.username
+        `),
+        db.query(`
+            SELECT u.user_id, u.username, u.avatar_url
+            FROM users u
+            LEFT JOIN team_members tm ON tm.user_id = u.user_id
+            WHERE u.is_registered_player = TRUE
+              AND tm.user_id IS NULL
+            ORDER BY u.username
+        `)
+    ]);
+
+    const teamsById = new Map();
+    for (const row of teamRows.rows) {
+        if (!teamsById.has(row.team_id)) {
+            teamsById.set(row.team_id, {
+                id: row.team_id,
+                name: row.team_name,
+                members: []
+            });
+        }
+        if (row.user_id) {
+            teamsById.get(row.team_id).members.push({
+                id: row.user_id,
+                username: row.username,
+                avatarUrl: row.avatar_url
+            });
+        }
+    }
+
+    res.json({
+        teams: [...teamsById.values()],
+        unassignedPlayers: unassignedRows.rows.map(player => ({
+            id: player.user_id,
+            username: player.username,
+            avatarUrl: player.avatar_url
+        }))
+    });
+});
+
+app.post('/admin/teams', requireAdmin, express.json(), async (req, res) => {
+    const name = String(req.body.name || '').trim();
+    if (!name || name.length > 80) {
+        return res.status(400).json({ error: 'Team name must contain 1 to 80 characters.' });
+    }
+
+    try {
+        const result = await db.query(
+            'INSERT INTO teams (name) VALUES ($1) RETURNING team_id, name',
+            [name]
+        );
+        res.status(201).json({ id: result.rows[0].team_id, name: result.rows[0].name });
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(409).json({ error: 'A team with that name already exists.' });
+        }
+        throw error;
+    }
+});
+
+app.put('/admin/teams/:teamId', requireAdmin, express.json(), async (req, res) => {
+    const teamId = Number(req.params.teamId);
+    const name = String(req.body.name || '').trim();
+    if (!Number.isSafeInteger(teamId) || teamId < 1 || !name || name.length > 80) {
+        return res.status(400).json({ error: 'A valid team name is required.' });
+    }
+
+    try {
+        const result = await db.query(
+            'UPDATE teams SET name = $1 WHERE team_id = $2 RETURNING team_id, name',
+            [name, teamId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Team not found.' });
+        res.json({ id: result.rows[0].team_id, name: result.rows[0].name });
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(409).json({ error: 'A team with that name already exists.' });
+        }
+        throw error;
+    }
+});
+
+app.delete('/admin/teams/:teamId', requireAdmin, async (req, res) => {
+    const teamId = Number(req.params.teamId);
+    if (!Number.isSafeInteger(teamId) || teamId < 1) {
+        return res.status(400).json({ error: 'A valid team is required.' });
+    }
+
+    const result = await db.query('DELETE FROM teams WHERE team_id = $1', [teamId]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Team not found.' });
+    res.sendStatus(204);
+});
+
+app.post('/admin/teams/:teamId/members', requireAdmin, express.json(), async (req, res) => {
+    const teamId = Number(req.params.teamId);
+    const userId = Number(req.body.userId);
+    if (!Number.isSafeInteger(teamId) || teamId < 1 || !Number.isSafeInteger(userId) || userId < 1) {
+        return res.status(400).json({ error: 'A valid team and player are required.' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        const [teamResult, playerResult] = await Promise.all([
+            client.query('SELECT team_id FROM teams WHERE team_id = $1', [teamId]),
+            client.query('SELECT user_id FROM users WHERE user_id = $1 AND is_registered_player = TRUE', [userId])
+        ]);
+        if (teamResult.rows.length === 0) throw Object.assign(new Error('Team not found.'), { status: 404 });
+        if (playerResult.rows.length === 0) throw Object.assign(new Error('Registered player not found.'), { status: 404 });
+
+        await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+        await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [teamId, userId]);
+        await client.query('COMMIT');
+        res.sendStatus(204);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        if (error.status) return res.status(error.status).json({ error: error.message });
+        throw error;
+    } finally {
+        client.release();
+    }
+});
+
+app.delete('/admin/teams/:teamId/members/:userId', requireAdmin, async (req, res) => {
+    const teamId = Number(req.params.teamId);
+    const userId = Number(req.params.userId);
+    if (!Number.isSafeInteger(teamId) || teamId < 1 || !Number.isSafeInteger(userId) || userId < 1) {
+        return res.status(400).json({ error: 'A valid team and player are required.' });
+    }
+
+    await db.query(
+        'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
+        [teamId, userId]
+    );
     res.sendStatus(204);
 });
 

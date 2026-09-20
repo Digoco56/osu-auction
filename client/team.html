@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage team | osu! Auction</title>
+  <link rel="stylesheet" href="css/homepage.css" />
+</head>
+<body>
+  <div class="dashboard-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">o!</div>
+        <span>osu! Auction</span>
+      </div>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/players.html">Players</a>
+        <a href="/team.html">Teams</a>
+        <a href="/mappool.html">Mappool</a>
+        <a href="#">Rules</a>
+        <a id="admin-nav-link" href="/admin.html" class="nav-admin-link" hidden>Admin Panel</a>
+      </nav>
+      <div class="account-area">
+        <div class="user-pill">
+          <img id="team-page-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar" />
+          <div>
+            <span id="team-page-username">Player</span>
+            <span id="team-page-role" class="user-role">Captain</span>
+          </div>
+        </div>
+        <a href="/logout" class="logout-link">Logout</a>
+      </div>
+    </header>
+
+    <main class="dashboard-content">
+      <section class="dashboard-heading">
+        <div>
+          <p class="eyebrow">Captain controls</p>
+          <h1>Manage team</h1>
+        </div>
+      </section>
+      <section class="team-settings panel">
+        <div class="team-image-control">
+          <div id="team-image-placeholder" class="team-image-placeholder">Team image</div>
+          <img id="team-image-preview" class="team-image-preview" alt="Team image" hidden />
+          <label class="team-image-upload" for="team-image-input">Choose image</label>
+          <input id="team-image-input" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+          <button id="clear-team-image" class="team-text-button" type="button">Remove image</button>
+        </div>
+        <form id="team-settings-form" class="team-settings-form">
+          <label for="team-name-input">Team name</label>
+          <input id="team-name-input" type="text" maxlength="80" required />
+          <button class="btn btn-primary" type="submit">Save changes</button>
+          <p id="team-settings-status" class="team-settings-status" role="status"></p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let pendingImageData;
+
+    function setImagePreview(imageUrl) {
+      const image = document.getElementById('team-image-preview');
+      const placeholder = document.getElementById('team-image-placeholder');
+      image.hidden = !imageUrl;
+      placeholder.hidden = Boolean(imageUrl);
+      if (imageUrl) image.src = imageUrl;
+    }
+
+    async function loadTeamSettings() {
+      const [userResponse, teamResponse] = await Promise.all([
+        fetch('/api/user', { cache: 'no-store' }),
+        fetch('/api/captain/team', { cache: 'no-store' })
+      ]);
+      if (!userResponse.ok || !teamResponse.ok) {
+        window.location.href = '/dashboard.html';
+        return;
+      }
+      const [user, data] = await Promise.all([userResponse.json(), teamResponse.json()]);
+      if ((user.role || '').toLowerCase() !== 'captain' || !data.team) {
+        window.location.href = '/dashboard.html';
+        return;
+      }
+
+      document.getElementById('team-page-username').textContent = user.username || 'Captain';
+      document.getElementById('team-page-role').textContent = 'Captain';
+      if (user.avatar_url) document.getElementById('team-page-user-avatar').src = user.avatar_url;
+      document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
+      document.getElementById('team-name-input').value = data.team.name;
+      setImagePreview(data.team.imageUrl);
+    }
+
+    document.getElementById('team-image-input').addEventListener('change', event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.size > 1400000) {
+        const status = document.getElementById('team-settings-status');
+        status.className = 'team-settings-status is-error';
+        status.textContent = 'Use an image smaller than 1.4 MB.';
+        event.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        pendingImageData = reader.result;
+        setImagePreview(pendingImageData);
+      });
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('clear-team-image').addEventListener('click', () => {
+      pendingImageData = null;
+      document.getElementById('team-image-input').value = '';
+      setImagePreview(null);
+    });
+
+    document.getElementById('team-settings-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const status = document.getElementById('team-settings-status');
+      const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      status.className = 'team-settings-status';
+      status.textContent = 'Saving changes...';
+      try {
+        const body = { name: document.getElementById('team-name-input').value.trim() };
+        if (pendingImageData !== undefined) body.imageData = pendingImageData;
+        const response = await fetch('/api/captain/team', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(result?.error || 'Could not save team.');
+        pendingImageData = undefined;
+        setImagePreview(result.team.imageUrl);
+        status.className = 'team-settings-status is-success';
+        status.textContent = 'Team saved.';
+      } catch (error) {
+        status.className = 'team-settings-status is-error';
+        status.textContent = error.message;
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+
+    loadTeamSettings();
+  </script>
+</body>
+</html>

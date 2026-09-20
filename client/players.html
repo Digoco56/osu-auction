@@ -77,7 +77,7 @@
     function createPlayerCard(player) {
       const card = document.createElement('article');
       card.className = 'player-directory-card panel';
-      const isIneligible = player.player_eligibility_status === 'bws-ineligible';
+      const isIneligible = !player.can_participate;
       card.classList.toggle('is-ineligible', isIneligible);
 
       const avatar = document.createElement('img');
@@ -161,8 +161,8 @@
         if (user.avatar_url) document.getElementById('dashboard-user-avatar').src = user.avatar_url;
         document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
 
-        const eligiblePlayers = players.filter(player => player.is_registered_player);
-        count.textContent = `${eligiblePlayers.length} registered`;
+        const eligiblePlayers = players.filter(player => player.can_participate);
+        count.textContent = `${eligiblePlayers.length} eligible`;
         directory.replaceChildren(...players.map(createPlayerCard));
         if (players.length === 0) {
           const empty = document.createElement('p');

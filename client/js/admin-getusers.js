@@ -1,6 +1,7 @@
 const API_BASE = '';
 const pendingRoleUpdates = {};
 const pendingTeamUpdates = {};
+const pendingParticipationUpdates = {};
 let users = [];
 let teams = [];
 
@@ -94,6 +95,20 @@ function createUserRow(user) {
   roleCell.appendChild(select);
   row.appendChild(roleCell);
 
+  const participationCell = document.createElement('td');
+  const participationSelect = document.createElement('select');
+  participationSelect.className = 'participation-select';
+  participationSelect.dataset.userId = user.user_id;
+  participationSelect.add(new Option('Automatic', '', false, user.participation_override == null));
+  participationSelect.add(new Option('Can participate', 'true', false, user.participation_override === true));
+  participationSelect.add(new Option('Cannot participate', 'false', false, user.participation_override === false));
+  participationSelect.addEventListener('change', event => {
+    const value = event.target.value;
+    pendingParticipationUpdates[event.target.dataset.userId] = value === '' ? null : value === 'true';
+  });
+  participationCell.appendChild(participationSelect);
+  row.appendChild(participationCell);
+
   const teamCell = document.createElement('td');
   const teamSelect = document.createElement('select');
   teamSelect.className = 'team-select';
@@ -142,7 +157,8 @@ function createAvatarCell(avatarUrl) {
 saveButton.onclick = async () => {
   const roleEntries = Object.entries(pendingRoleUpdates);
   const teamEntries = Object.entries(pendingTeamUpdates);
-  if (!roleEntries.length && !teamEntries.length) {
+  const participationEntries = Object.entries(pendingParticipationUpdates);
+  if (!roleEntries.length && !teamEntries.length && !participationEntries.length) {
     statusMessage.textContent = 'There are no pending changes.';
     return;
   }
@@ -174,6 +190,17 @@ saveButton.onclick = async () => {
         user.team_name = team?.name || null;
       }
       delete pendingTeamUpdates[userId];
+    }));
+    await Promise.all(participationEntries.map(async ([userId, participationOverride]) => {
+      const response = await fetch(`${API_BASE}/admin/set-participation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, participationOverride })
+      });
+      if (!response.ok) throw new Error(`Could not update participation for user ${userId}`);
+      const user = users.find(item => String(item.user_id) === String(userId));
+      if (user) user.participation_override = participationOverride;
+      delete pendingParticipationUpdates[userId];
     }));
     statusMessage.textContent = 'Changes saved successfully.';
     renderUsers();
