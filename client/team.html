@@ -81,7 +81,8 @@
       }
       const [user, data] = await Promise.all([userResponse.json(), teamResponse.json()]);
       if (!['captain', 'admin'].includes((user.role || '').toLowerCase()) || !data.team) {
-        window.location.href = '/dashboard.html';
+        document.getElementById('team-settings-status').className = 'team-settings-status is-error';
+        document.getElementById('team-settings-status').textContent = 'No team is assigned to this captain.';
         return;
       }
 

@@ -774,7 +774,7 @@ app.get('/api/captain/team', requireTeamManager, async (req, res) => {
     });
 });
 
-app.post('/api/captain/team', requireTeamManager, express.json({ limit: '2mb' }), async (req, res) => {
+app.post('/api/captain/team', requireTeamManager, express.json({ limit: '4mb' }), async (req, res) => {
     const name = String(req.body.name || '').trim();
     if (!name || name.length > 80) {
         return res.status(400).json({ error: 'Team name must contain 1 to 80 characters.' });
@@ -810,7 +810,7 @@ app.post('/api/captain/team', requireTeamManager, express.json({ limit: '2mb' })
     }
 });
 
-app.put('/api/captain/team', requireTeamManager, express.json({ limit: '2mb' }), async (req, res) => {
+app.put('/api/captain/team', requireTeamManager, express.json({ limit: '4mb' }), async (req, res) => {
     const team = await getCaptainTeam(req.session.user.id);
     if (!team) return res.status(404).json({ error: 'You do not manage a team.' });
 
@@ -1568,7 +1568,7 @@ app.post('/admin/teams', requireAdmin, express.json(), async (req, res) => {
     }
 });
 
-app.put('/admin/teams/:teamId', requireAdmin, express.json({ limit: '2mb' }), async (req, res) => {
+app.put('/admin/teams/:teamId', requireAdmin, express.json({ limit: '4mb' }), async (req, res) => {
     const teamId = Number(req.params.teamId);
     const name = String(req.body.name || '').trim();
     const hasImageUpdate = Object.hasOwn(req.body, 'imageData');
