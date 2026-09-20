@@ -39,7 +39,20 @@
           <p class="eyebrow">Registered players</p>
           <h1 id="players-title">Players</h1>
         </div>
-        <p id="players-count" class="timezone-note">Loading players</p>
+        <div class="players-heading-actions">
+          <label class="players-sort-control" for="players-sort">
+            <span>Sort by</span>
+            <select id="players-sort">
+              <option value="rank-desc">Rank: highest to lowest</option>
+              <option value="rank-asc">Rank: lowest to highest</option>
+              <option value="name-asc">Name: A–Z</option>
+              <option value="name-desc">Name: Z–A</option>
+              <option value="registered-asc">Registration: oldest first</option>
+              <option value="registered-desc">Registration: newest first</option>
+            </select>
+          </label>
+          <p id="players-count" class="timezone-note">Loading players</p>
+        </div>
       </section>
 
       <section id="players-directory" class="players-directory" aria-live="polite">
@@ -137,9 +150,42 @@
       return card;
     }
 
+    function sortPlayers(players, sortOrder) {
+      const compareNames = (first, second) => String(first.username || '').localeCompare(
+        String(second.username || ''),
+        undefined,
+        { sensitivity: 'base' }
+      );
+      const compareNumbers = (first, second, property) => {
+        const firstValue = property === 'registered_at' ? Date.parse(first[property]) : Number(first[property]);
+        const secondValue = property === 'registered_at' ? Date.parse(second[property]) : Number(second[property]);
+        const firstIsValid = Number.isFinite(firstValue);
+        const secondIsValid = Number.isFinite(secondValue);
+        if (!firstIsValid && !secondIsValid) return 0;
+        if (!firstIsValid) return 1;
+        if (!secondIsValid) return -1;
+        return firstValue - secondValue;
+      };
+
+      return [...players].sort((first, second) => {
+        let comparison;
+        switch (sortOrder) {
+          case 'name-asc': comparison = compareNames(first, second); break;
+          case 'name-desc': comparison = -compareNames(first, second); break;
+          case 'registered-asc': comparison = compareNumbers(first, second, 'registered_at'); break;
+          case 'registered-desc': comparison = -compareNumbers(first, second, 'registered_at'); break;
+          case 'rank-asc': comparison = compareNumbers(first, second, 'global_rank'); break;
+          case 'rank-desc':
+          default: comparison = -compareNumbers(first, second, 'global_rank'); break;
+        }
+        return comparison || compareNames(first, second);
+      });
+    }
+
     async function loadPlayersPage() {
       const directory = document.getElementById('players-directory');
       const count = document.getElementById('players-count');
+      const sortControl = document.getElementById('players-sort');
 
       try {
         const [userResponse, playersResponse] = await Promise.all([
@@ -163,7 +209,11 @@
 
         const eligiblePlayers = players.filter(player => player.can_participate);
         count.textContent = `${eligiblePlayers.length} registered`;
-        directory.replaceChildren(...players.map(createPlayerCard));
+        const renderPlayers = () => {
+          directory.replaceChildren(...sortPlayers(players, sortControl.value).map(createPlayerCard));
+        };
+        renderPlayers();
+        sortControl.addEventListener('change', renderPlayers);
         if (players.length === 0) {
           const empty = document.createElement('p');
           empty.className = 'empty-lineup';

@@ -858,6 +858,7 @@ app.get('/api/players', async (req, res) => {
             u.global_rank,
             u.bws_badge_count,
             u.bws_rank,
+            u.registered_at,
             u.is_registered_player,
             u.player_eligibility_status,
             u.participation_override,
@@ -867,7 +868,7 @@ app.get('/api/players', async (req, res) => {
         LEFT JOIN teams t ON t.team_id = tm.team_id
                 WHERE u.is_registered_player = TRUE
                     AND u.discord_id IS NOT NULL
-        ORDER BY u.username
+        ORDER BY u.registered_at ASC NULLS LAST, u.username ASC
     `);
     res.json(players.rows.map(player => ({
         ...player,
