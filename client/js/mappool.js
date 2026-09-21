@@ -30,6 +30,7 @@ fetch('/api/mappool')
   });
 
 function createSection(section) {
+  console.log(section);
   const wrapper = document.createElement('section');
   wrapper.className = 'mappool-section';
   const heading = document.createElement('h2');
