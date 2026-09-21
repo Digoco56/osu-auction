@@ -31,7 +31,7 @@ fetch('/api/mappool')
 
 function createSection(section) {
   // Convert the section name to uppercase
-  section.name = section.toUpperCase();
+  section.name = section.name.toUpperCase();
   //Q case = Qualifiers
   //QF = QuarterFinals
   //SF = SemiFinals
