@@ -30,7 +30,37 @@ fetch('/api/mappool')
   });
 
 function createSection(section) {
-  console.log(section);
+  // Convert the section name to uppercase
+  section.name = section.toUpperCase();
+  //Q case = Qualifiers
+  //QF = QuarterFinals
+  //SF = SemiFinals
+  //F = Finals
+  //GF = GrandFinals
+  switch (section.name) {
+    case 'Q':
+      section.name = 'Qualifiers';
+      break;
+    case 'RO32':
+      section.name = 'Round of 32';
+      break;
+    case 'RO16':
+      section.name = 'Round of 16';
+      break;
+    case 'QF':
+      section.name = 'Quarterfinals';
+      break;
+    case 'SF':
+      section.name = 'Semifinals';
+      break;
+    case 'F':
+      section.name = 'Finals';
+      break;
+    case 'GF':
+      section.name = 'Grand Finals';
+      break;
+  }
+
   const wrapper = document.createElement('section');
   wrapper.className = 'mappool-section';
   const heading = document.createElement('h2');
