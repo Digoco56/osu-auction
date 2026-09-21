@@ -1,67 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manage team | osu! Auction</title>
-  <link rel="stylesheet" href="css/homepage.css" />
-</head>
-<body>
-  <div class="dashboard-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">o!</div>
-        <span>osu! Auction</span>
-      </div>
-      <nav>
-        <a href="/dashboard.html">Home</a>
-        <a href="/players.html">Players</a>
-        <a href="/teams.html">Teams</a>
-        <a href="/mappool.html">Mappool</a>
-        <a href="#">Rules</a>
-        <a id="admin-nav-link" href="/admin.html" class="nav-admin-link" hidden>Admin Panel</a>
-      </nav>
-      <div class="account-area">
-        <div class="user-pill">
-          <img id="team-page-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar" />
-          <div>
-            <span id="team-page-username">Player</span>
-            <span id="team-page-role" class="user-role">Captain</span>
-          </div>
-        </div>
-        <a href="/logout" class="logout-link">Logout</a>
-      </div>
-    </header>
-
-    <main class="dashboard-content">
-      <section class="dashboard-heading">
-        <div>
-          <p class="eyebrow">Captain controls</p>
-          <h1>Manage team</h1>
-        </div>
-      </section>
-      <section class="team-settings panel">
-        <div class="team-image-control">
-          <div id="team-image-placeholder" class="team-image-placeholder">Team image</div>
-          <img id="team-image-preview" class="team-image-preview" alt="Team image" hidden />
-          <label class="team-image-upload" for="team-image-input">Choose image</label>
-          <input id="team-image-input" type="file" accept="image/png,image/jpeg,image/webp" hidden />
-          <button id="clear-team-image" class="team-text-button" type="button">Remove image</button>
-        </div>
-        <form id="team-settings-form" class="team-settings-form">
-          <label for="team-name-input">Team name</label>
-          <input id="team-name-input" type="text" maxlength="80" required />
-          <button class="btn btn-primary" type="submit">Save changes</button>
-          <p id="team-settings-status" class="team-settings-status" role="status"></p>
-        </form>
-      </section>
-    </main>
-  </div>
-
-  <script src="js/team-image-editor.js"></script>
-  <script src="js/team-manage.js"></script>
-  <script>
-/*     let pendingImageData;
+ let pendingImageData;
 
     function setImagePreview(imageUrl) {
       const image = document.getElementById('team-image-preview');
@@ -156,7 +93,4 @@
       }
     });
 
-    loadTeamSettings(); */
-  </script>
-</body>
-</html>
+    loadTeamSettings();
