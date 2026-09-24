@@ -590,7 +590,8 @@ app.get('/auth/discord/callback', async (req, res) => {
 
         const bwsEligibility = await calculateBwsEligibility(sessionUser.id);
 
-        await db.query(`
+        //old to database
+        /* await db.query(`
             INSERT INTO users (
                 user_id, username, avatar_url, discord_id, discord_username,
                 is_registered_player, registered_at, bws_rank, global_rank,
@@ -622,7 +623,65 @@ app.get('/auth/discord/callback', async (req, res) => {
             bwsEligibility.badgeCount,
             bwsEligibility.countryCode,
             bwsEligibility.eligible ? 'registered' : 'bws-ineligible'
+        ]); */
+
+        ////////////////////////////////////////////////// REGISTRO A LA BASE DE DATOS Y GOOGLE SHEETS////////////////////////////////////////////
+        // Guarda o actualiza en la base de datos al jugador
+        // que inició este flujo de registro.
+        await db.query(`
+    INSERT INTO users (
+        user_id, username, avatar_url, discord_id, discord_username,
+        is_registered_player, registered_at, bws_rank, global_rank,
+        bws_badge_count, bws_calculated_at, profile_country_code,
+        player_eligibility_status
+    )
+    VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), $6, $7, $8, NOW(), $9, $10)
+    ON CONFLICT (user_id) DO UPDATE SET
+        username = EXCLUDED.username,
+        avatar_url = EXCLUDED.avatar_url,
+        discord_id = EXCLUDED.discord_id,
+        discord_username = EXCLUDED.discord_username,
+        is_registered_player = TRUE,
+        registered_at = COALESCE(users.registered_at, NOW()),
+        bws_rank = EXCLUDED.bws_rank,
+        global_rank = EXCLUDED.global_rank,
+        bws_badge_count = EXCLUDED.bws_badge_count,
+        bws_calculated_at = NOW(),
+        profile_country_code = EXCLUDED.profile_country_code,
+        player_eligibility_status = EXCLUDED.player_eligibility_status
+`, [
+            sessionUser.id,
+            sessionUser.username,
+            sessionUser.avatar_url,
+            discordUser.id,
+            discordUser.global_name || discordUser.username,
+            bwsEligibility.bwsRank,
+            bwsEligibility.globalRank,
+            bwsEligibility.badgeCount,
+            bwsEligibility.countryCode,
+            bwsEligibility.eligible ? 'registered' : 'bws-ineligible'
         ]);
+
+        try {
+            // Lee la fila completa que acabamos de guardar,
+            // usando el ID del usuario que pasó por este registro.
+            const result = await db.query(
+                'SELECT * FROM users WHERE user_id = $1',
+                [sessionUser.id]
+            );
+
+            // Envía los valores de esa fila, en el orden de sus columnas,
+            // a la pestaña Registers de la hoja.
+            await writeRegistersGoogleSheet(
+                'Registers',
+                Object.values(result.rows[0])
+            );
+        } catch (error) {
+            // El registro ya quedó guardado en la base de datos.
+            // Si falla la copia a Sheets, se registra el error en el servidor.
+            console.error('Could not copy registration to Google Sheets:', error.message);
+        }
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
 
         delete req.session.discordOAuthState;
         await saveSession(req);
@@ -1066,7 +1125,68 @@ async function readGoogleSheet(sheetName) {
 
     return result;
 }
+////////////////////////////// DONE BY ME//////////////////////////////
+async function writeRegistersGoogleSheet(sheetName, values) {
+    // Obtiene la URL del Apps Script y el token desde el .env del servidor.
+    const url = process.env.GOOGLE_APPS_SCRIPT_URL_REGS;
+    const token = process.env.GOOGLE_APPS_SCRIPT_TOKEN_REGS;
 
+    // Si falta cualquiera de los dos datos de configuración, no intenta enviar.
+    if (!url || !token) {
+        throw new Error('Google Apps Script registers configuration is incomplete');
+    }
+
+    // Aquí guardaremos el último error si fallan los intentos de envío.
+    let lastError;
+
+    // Intenta enviar la fila hasta GOOGLE_SHEET_ATTEMPTS veces.
+    for (let attempt = 1; attempt <= GOOGLE_SHEET_ATTEMPTS; attempt++) {
+        try {
+            // Envía una petición POST al Apps Script.
+            const response = await axios.post(
+                url,
+
+                // Este JSON debe corresponder con lo que el Apps Script lee:
+                // sheet indica la pestaña y values contiene la fila.
+                { sheet: sheetName, values },
+
+                {
+                    // Envía el token en la URL para que Apps Script lo valide.
+                    params: { token },
+
+                    // Cancela la petición si tarda más de 15 segundos.
+                    timeout: 15000
+                }
+            );
+
+            // Comprueba que Apps Script haya confirmado la escritura.
+            if (!response.data?.ok) {
+                throw new Error('Google Apps Script did not confirm the write');
+            }
+
+            // Devuelve la respuesta si todo salió bien.
+            return response.data;
+        } catch (error) {
+            // Guarda el error para poder lanzarlo si se agotan los intentos.
+            lastError = error;
+
+            // Deja información del fallo en la consola del servidor.
+            console.warn(
+                `Google Sheets register write failed (attempt ${attempt}/${GOOGLE_SHEET_ATTEMPTS}):`,
+                { status: error.response?.status, message: error.message }
+            );
+
+            // Espera un poco antes de reintentar.
+            if (attempt < GOOGLE_SHEET_ATTEMPTS) {
+                await new Promise(resolve => setTimeout(resolve, attempt * 500));
+            }
+        }
+    }
+
+    // Si ningún intento funcionó, avisa al código que llamó esta función.
+    throw lastError;
+}
+///////////////////////////////////////////////////////////////////////////
 function removeMappoolColumns(headers, rows) {
     const hiddenHeaders = new Set(['primary', 'secondary', 'map id']);
     const visibleHeaders = headers.filter(header => (
@@ -1080,7 +1200,6 @@ function removeMappoolColumns(headers, rows) {
         ))
     };
 }
-
 async function getOsuApiToken() {
     if (osuApiToken && Date.now() < osuApiTokenExpiresAt) return osuApiToken;
 
@@ -1369,7 +1488,7 @@ app.get('/admin/logged-users', async (req, res) => {
     }
 
     // Obtener todos los usuarios registrados
-        const users = await db.query(`
+    const users = await db.query(`
                 SELECT
                         u.user_id,
                         u.username,
@@ -1390,7 +1509,7 @@ app.get('/admin/logged-users', async (req, res) => {
                 LEFT JOIN teams t ON t.team_id = tm.team_id
                 ORDER BY u.username
         `);
-      
+
 
     res.json(users.rows);
 });
@@ -1407,25 +1526,25 @@ app.get('/admin/teams', requireAdmin, async (req, res) => {
 
 app.post('/admin/set-role', express.json(), async (req, res) => {
     const { userId, role } = req.body;
-  
+
     if (!req.session.user) return res.status(401).send('Not authenticated');
-  
+
     const adminCheck = await db.query(
-      'SELECT role FROM users WHERE user_id = $1',
-      [req.session.user.id]
+        'SELECT role FROM users WHERE user_id = $1',
+        [req.session.user.id]
     );
-  
+
     if (adminCheck.rows[0]?.role !== 'admin') {
-      return res.status(403).send('Access denied');
+        return res.status(403).send('Access denied');
     }
-  
+
     await db.query(
-      'UPDATE users SET role = $1 WHERE user_id = $2',
-      [role, userId]
+        'UPDATE users SET role = $1 WHERE user_id = $2',
+        [role, userId]
     );
-  
+
     res.sendStatus(200);
-  });
+});
 
 app.post('/admin/set-participation', requireAdmin, express.json(), async (req, res) => {
     const { userId, participationOverride } = req.body;
