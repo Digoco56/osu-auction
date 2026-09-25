@@ -1179,10 +1179,22 @@ async function writeRegistersGoogleSheet(sheetName, values) {
             lastError = error;
 
             // Deja información del fallo en la consola del servidor.
+            const responseUrl = error.response?.request?.res?.responseUrl;
+            let responseLocation;
+            if (responseUrl) {
+                try {
+                    const parsedUrl = new URL(responseUrl);
+                    responseLocation = `${parsedUrl.origin}${parsedUrl.pathname}`;
+                } catch {
+                    responseLocation = 'unparseable';
+                }
+            }
             console.warn(
                 `Google Sheets register write failed (attempt ${attempt}/${GOOGLE_SHEET_ATTEMPTS}):`,
                 {
                     status: error.response?.status,
+                    contentType: error.response?.headers?.['content-type'],
+                    responseLocation,
                     message: error.message,
                     response: error.appsScriptBody || (error.response?.data
                         ? String(typeof error.response.data === 'string'
