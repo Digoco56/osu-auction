@@ -1161,7 +1161,15 @@ async function writeRegistersGoogleSheet(sheetName, values) {
 
             // Comprueba que Apps Script haya confirmado la escritura.
             if (!response.data?.ok) {
-                throw new Error('Google Apps Script did not confirm the write');
+                const responseBody = typeof response.data === 'string'
+                    ? response.data
+                    : JSON.stringify(response.data ?? null);
+                const safeBody = String(responseBody)
+                    .replaceAll(token, '[REDACTED]')
+                    .slice(0, 600);
+                const error = new Error('Google Apps Script did not confirm the write');
+                error.appsScriptBody = safeBody;
+                throw error;
             }
 
             // Devuelve la respuesta si todo salió bien.
@@ -1173,7 +1181,17 @@ async function writeRegistersGoogleSheet(sheetName, values) {
             // Deja información del fallo en la consola del servidor.
             console.warn(
                 `Google Sheets register write failed (attempt ${attempt}/${GOOGLE_SHEET_ATTEMPTS}):`,
-                { status: error.response?.status, message: error.message }
+                {
+                    status: error.response?.status,
+                    message: error.message,
+                    response: error.appsScriptBody || (error.response?.data
+                        ? String(typeof error.response.data === 'string'
+                            ? error.response.data
+                            : JSON.stringify(error.response.data))
+                            .replaceAll(token, '[REDACTED]')
+                            .slice(0, 600)
+                        : undefined)
+                }
             );
 
             // Espera un poco antes de reintentar.
