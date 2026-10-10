@@ -246,7 +246,7 @@ footer {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
-  padding: 1.1rem 1.25rem;
+  padding: 1.1rem max(1.25rem, calc((100% - 1280px) / 2));
   border-bottom: 1px solid var(--line);
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(12px);
@@ -289,7 +289,7 @@ footer {
   flex-wrap: nowrap;
   min-width: 0;
   overflow-x: auto;
-  justify-content: flex-start;
+  justify-content: safe center;
 }
 
 .topbar nav a {
