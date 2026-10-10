@@ -86,6 +86,7 @@ function formatRank(rank) {
 
       details.append(nameRow, role, team, metadata);
       card.append(avatar, details);
+      applyProfileCover(card, player.user_id);
       return card;
     }
 

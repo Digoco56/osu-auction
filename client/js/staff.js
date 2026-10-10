@@ -32,6 +32,7 @@ function createStaffSection(section) {
     profile.rel = 'noopener noreferrer';
     profile.textContent = member.username;
     item.append(avatar, profile);
+    applyProfileCover(item, member.user_id);
     members.appendChild(item);
   });
   container.appendChild(members);

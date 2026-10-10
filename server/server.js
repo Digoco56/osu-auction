@@ -6,6 +6,17 @@ const path = require('path');
 const crypto = require('crypto');
 const db = require('./db');
 const { STAFF_ROLES, getStaffRoleLabels, formatRoleLabels, normalizeStaffRoles, buildStaffSections } = require('./staff-roles');
+const { createProfileCoverLoader } = require('./profile-covers');
+
+const getProfileCover = createProfileCoverLoader(async userId => {
+    const token = await getOsuApiToken();
+    const response = await axios.get(`https://osu.ppy.sh/api/v2/users/${userId}/osu`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { key: 'id' },
+        timeout: 15000
+    });
+    return response.data;
+});
 
 const app = express();
 const mappoolCache = new Map();
@@ -904,6 +915,24 @@ app.put('/api/captain/team', requireTeamManager, express.json({ limit: '4mb' }),
         }
         console.error('Could not update captain team:', error.message);
         res.status(500).json({ error: 'Could not update team.' });
+    }
+});
+
+app.get('/api/users/:userId/cover', async (req, res) => {
+    if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+    const userId = Number(req.params.userId);
+    if (!Number.isSafeInteger(userId) || userId < 1) {
+        return res.status(400).json({ error: 'A valid osu! user ID is required.' });
+    }
+
+    try {
+        const result = await db.query('SELECT user_id FROM users WHERE user_id = $1', [userId]);
+        if (!result.rowCount) return res.status(404).json({ error: 'User not found.' });
+        const coverUrl = await getProfileCover(userId);
+        res.json({ coverUrl });
+    } catch (error) {
+        console.error(`Could not load osu! profile cover for user ${userId}:`, error.message);
+        res.status(502).json({ error: 'The osu! profile cover could not be loaded.' });
     }
 });
 

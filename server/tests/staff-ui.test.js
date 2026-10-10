@@ -25,7 +25,7 @@ class Element {
 
 function loadUI() {
     const document = { createElement: tagName => new Element(tagName) };
-    const context = vm.createContext({ document });
+    const context = vm.createContext({ document, applyProfileCover() {} });
     const client = path.join(__dirname, '..', '..', 'client');
     vm.runInContext(fs.readFileSync(path.join(client, 'js', 'role-display.js'), 'utf8'), context);
     const staffSource = fs.readFileSync(path.join(client, 'js', 'staff.js'), 'utf8');
