@@ -231,6 +231,7 @@
       playerRanks.append(globalRank, bwsRank);
 
       playerRow.append(playerMain, playerRanks);
+      applyProfileCover(playerRow, player.user_id);
       return playerRow;
     }
 

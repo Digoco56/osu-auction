@@ -1142,7 +1142,8 @@ footer {
 }
 
 .player-directory-card.has-profile-cover,
-.staff-member.has-profile-cover {
+.staff-member.has-profile-cover,
+.team-roster-row.has-profile-cover {
   position: relative;
   isolation: isolate;
   overflow: hidden;

@@ -104,3 +104,31 @@ test('all tournament pages place Staff Members between Mappool and Rules and loa
         assert.ok(scripts[0].endsWith('role-display.js'), page);
     }
 });
+
+test('dashboard lineup requests the matching player cover while preserving player details', () => {
+    const client = path.join(__dirname, '..', '..', 'client');
+    const source = fs.readFileSync(path.join(client, 'js', 'dashboard.js'), 'utf8');
+    const start = source.indexOf('    function createPlayerRow(player)');
+    const end = source.indexOf('    async function loadTeamLineup()', start);
+    const requests = [];
+    const context = vm.createContext({
+        document: { createElement: tag => new Element(tag) },
+        applyProfileCover: (element, userId) => requests.push({ element, userId })
+    });
+    vm.runInContext(source.slice(start, end), context);
+    const row = context.createPlayerRow({
+        user_id: '123', username: 'Captain', is_captain: true,
+        profile_country_code: 'ES', global_rank: 12345, bws_badge_count: 0
+    });
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].element, row);
+    assert.equal(requests[0].userId, '123');
+    assert.equal(row.className, 'team-roster-row');
+    assert.equal(row.children.length, 2);
+    assert.equal(row.children[0].children[2].children[0].textContent, 'Captain');
+    assert.equal(row.children[1].children[0].textContent, 'Global #12,345');
+    const html = fs.readFileSync(path.join(client, 'dashboard.html'), 'utf8');
+    assert.ok(html.indexOf('/js/profile-cover.js') < html.indexOf('/js/dashboard.js'));
+    const css = fs.readFileSync(path.join(client, 'css', 'homepage.css'), 'utf8');
+    assert.match(css, /\.team-roster-row\.has-profile-cover\s*\{/);
+});
