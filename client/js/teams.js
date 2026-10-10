@@ -21,7 +21,7 @@
       tooltip.className = 'team-member-tooltip';
       tooltip.textContent = team.members.map(member => {
         const rank = member.globalRank == null ? 'Global —' : `Global #${Number(member.globalRank).toLocaleString('en-US')}`;
-        return `${member.username} · ${member.roleLabel || member.role} · ${rank}`;
+        return `${member.username} · ${rank}`;
       }).join('\n');
       count.append(tooltip);
       details.append(name, captain, count);

@@ -146,3 +146,22 @@ test('each tournament page highlights only its current navigation section', () =
         assert.equal(active[0][2], page === 'team' ? 'location' : 'page', page);
     }
 });
+
+test('Teams member tooltip shows names and global ranks without roles', () => {
+    const client = path.join(__dirname, '..', '..', 'client');
+    const source = fs.readFileSync(path.join(client, 'js', 'teams.js'), 'utf8');
+    const context = vm.createContext({
+        document: { createElement: tag => new Element(tag) }
+    });
+    vm.runInContext(source.slice(0, source.indexOf('    async function loadTeams()')), context);
+    const card = context.createTeamCard({
+        name: 'Team A', memberCount: 2, captainUsername: 'Captain',
+        members: [
+            { username: 'Captain', role: 'captain', roleLabel: 'Captain · Streamer', globalRank: 12345 },
+            { username: 'Member', role: 'admin', roleLabel: 'Admin · Host', globalRank: null }
+        ]
+    });
+    const details = card.children[2];
+    assert.equal(details.children[1].textContent, 'Captain: Captain');
+    assert.equal(details.children[2].children[0].textContent, 'Captain · Global #12,345\nMember · Global —');
+});
