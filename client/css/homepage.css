@@ -297,11 +297,19 @@ footer {
   white-space: nowrap;
   color: var(--text-soft);
   text-decoration: none;
+  padding-block: 0.4rem;
+  border-bottom: 2px solid transparent;
   transition: color 0.2s ease;
 }
 
 .topbar nav a:hover {
   color: var(--text);
+}
+
+.topbar nav a[aria-current] {
+  color: var(--secondary-soft);
+  border-bottom-color: var(--secondary);
+  text-shadow: 0 0 12px rgba(100, 211, 255, 0.25);
 }
 
 .user-pill {

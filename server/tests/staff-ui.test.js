@@ -115,6 +115,7 @@ test('dashboard lineup requests the matching player cover while preserving playe
         document: { createElement: tag => new Element(tag) },
         applyProfileCover: (element, userId) => requests.push({ element, userId })
     });
+
     vm.runInContext(source.slice(start, end), context);
     const row = context.createPlayerRow({
         user_id: '123', username: 'Captain', is_captain: true,
@@ -131,4 +132,17 @@ test('dashboard lineup requests the matching player cover while preserving playe
     assert.ok(html.indexOf('/js/profile-cover.js') < html.indexOf('/js/dashboard.js'));
     const css = fs.readFileSync(path.join(client, 'css', 'homepage.css'), 'utf8');
     assert.match(css, /\.team-roster-row\.has-profile-cover\s*\{/);
+});
+
+test('each tournament page highlights only its current navigation section', () => {
+    const client = path.join(__dirname, '..', '..', 'client');
+    const pages = { dashboard: 'dashboard', players: 'players', teams: 'teams', team: 'teams', mappool: 'mappool', staff: 'staff' };
+    for (const [page, section] of Object.entries(pages)) {
+        const source = fs.readFileSync(path.join(client, `${page}.html`), 'utf8');
+        const navigation = source.match(/<nav>([\s\S]*?)<\/nav>/)[1];
+        const active = [...navigation.matchAll(/<a href="([^"]+)" aria-current="([^"]+)"/g)];
+        assert.equal(active.length, 1, page);
+        assert.equal(active[0][1], `/${section}.html`, page);
+        assert.equal(active[0][2], page === 'team' ? 'location' : 'page', page);
+    }
 });
