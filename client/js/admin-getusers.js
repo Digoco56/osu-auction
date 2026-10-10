@@ -42,8 +42,10 @@ Promise.all([
     return Promise.all([usersResponse.json(), teamsResponse.json()]);
   })
   .then(([loadedUsers, loadedTeams]) => {
-    users = loadedUsers;
+    users = loadedUsers.users;
     teams = loadedTeams;
+    STAFF_ROLES = loadedUsers.staffRoles;
+    STAFF_ROLES.forEach(({ id, label }) => roleFilter.add(new Option(label, id)));
     renderUsers();
   })
   .catch(error => {
@@ -56,13 +58,17 @@ function renderUsers() {
   const selectedField = filterField.value;
   const selectedRole = roleFilter.value;
   const filteredUsers = users.filter(user => {
-    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+    const matchesRole = selectedRole === 'all'
+      || user.role === selectedRole
+      || (user.staff_roles || []).includes(selectedRole);
     if (!matchesRole) return false;
 
     if (!search) return true;
     const values = selectedField === 'all'
-      ? [user.user_id, user.username, user.role]
-      : [user[selectedField]];
+      ? [user.user_id, user.username, ...getUserRoleLabels(user)]
+      : selectedField === 'role'
+        ? getUserRoleLabels(user)
+        : [user[selectedField]];
     return values.some(value => String(value ?? '').toLowerCase().includes(search));
   });
 
@@ -78,21 +84,37 @@ function createUserRow(user) {
     createCell(user.user_id),
     createCell(user.username),
     createAvatarCell(user.avatar_url),
-    createCell(user.role)
+    createCell(getUserRoleLabels(user).join(' · '))
   );
 
   const roleCell = document.createElement('td');
   const select = document.createElement('select');
   select.className = 'role-select';
   select.dataset.userId = user.user_id;
+  const staffRoleOptions = document.createElement('div');
+  staffRoleOptions.className = 'staff-role-options';
   ['player', 'captain', 'admin'].forEach(role => {
     const option = new Option(role, role, false, user.role === role);
     select.add(option);
   });
   select.addEventListener('change', event => {
-    pendingRoleUpdates[event.target.dataset.userId] = event.target.value;
+    updateStaffRoleAvailability(staffRoleOptions, event.target.value);
+    queueRoleUpdate(event.target.dataset.userId, roleCell, event.target.value);
   });
-  roleCell.appendChild(select);
+  roleCell.append(select, staffRoleOptions);
+  STAFF_ROLES.forEach(({ id, label }) => {
+    const optionLabel = document.createElement('label');
+    optionLabel.className = 'staff-role-option';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'staff-role-checkbox';
+    checkbox.value = id;
+    checkbox.checked = (user.staff_roles || []).includes(id);
+    checkbox.addEventListener('change', () => queueRoleUpdate(user.user_id, roleCell));
+    optionLabel.append(checkbox, document.createTextNode(label));
+    staffRoleOptions.appendChild(optionLabel);
+  });
+  updateStaffRoleAvailability(staffRoleOptions, user.role);
   row.appendChild(roleCell);
 
   const participationCell = document.createElement('td');
@@ -136,6 +158,34 @@ function createCell(value) {
   return cell;
 }
 
+let STAFF_ROLES = [];
+
+function getUserRoleLabels(user) {
+  const labelsById = new Map(STAFF_ROLES.map(({ id, label }) => [id, label]));
+  return [
+    (user.role || 'player').replace(/^./, character => character.toUpperCase()),
+    ...(user.staff_roles || []).map(role => labelsById.get(role) || role)
+  ];
+}
+
+function updateStaffRoleAvailability(container, primaryRole) {
+  const isPlayerOrCaptain = ['player', 'captain'].includes(primaryRole);
+  container.querySelectorAll('.staff-role-checkbox').forEach(checkbox => {
+    const allowed = !isPlayerOrCaptain
+      || STAFF_ROLES.find(role => role.id === checkbox.value)?.allowedForPlayerOrCaptain;
+    checkbox.disabled = !allowed;
+    if (!allowed) checkbox.checked = false;
+  });
+}
+
+function queueRoleUpdate(userId, roleCell, primaryRole) {
+  pendingRoleUpdates[userId] = {
+    role: primaryRole || roleCell.querySelector('.role-select').value,
+    staffRoles: [...roleCell.querySelectorAll('.staff-role-checkbox:checked')]
+      .map(checkbox => checkbox.value)
+  };
+}
+
 function createAvatarCell(avatarUrl) {
   const cell = document.createElement('td');
   if (!avatarUrl) {
@@ -165,15 +215,18 @@ saveButton.onclick = async () => {
 
   saveButton.disabled = true;
   try {
-    await Promise.all(roleEntries.map(async ([userId, role]) => {
+    await Promise.all(roleEntries.map(async ([userId, roleUpdate]) => {
       const response = await fetch(`${API_BASE}/admin/set-role`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role })
+        body: JSON.stringify({ userId, ...roleUpdate })
       });
       if (!response.ok) throw new Error(`Could not update user ${userId}`);
       const user = users.find(item => String(item.user_id) === String(userId));
-      if (user) user.role = role;
+      if (user) {
+        user.role = roleUpdate.role;
+        user.staff_roles = roleUpdate.staffRoles;
+      }
       delete pendingRoleUpdates[userId];
     }));
     await Promise.all(teamEntries.map(async ([userId, teamId]) => {
@@ -211,4 +264,3 @@ saveButton.onclick = async () => {
     saveButton.disabled = false;
   }
 };
-

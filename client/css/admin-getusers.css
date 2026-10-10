@@ -391,6 +391,33 @@ select {
     padding: 0.4rem;
 }
 
+.role-select {
+    margin-bottom: 0.5rem;
+}
+
+.staff-role-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+    gap: 0.25rem 0.5rem;
+    min-width: 230px;
+    text-align: left;
+}
+
+.staff-role-option {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--admin-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.staff-role-option input {
+    margin: 0;
+    padding: 0;
+    width: auto;
+}
+
 img {
     height: 50px;
     border-radius: 5px;
@@ -583,4 +610,3 @@ button:disabled {
         grid-column: 1 / -1;
     }
 }
-

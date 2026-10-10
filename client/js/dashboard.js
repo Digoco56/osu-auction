@@ -88,7 +88,8 @@
 
         const user = await response.json();
         const username = user.username || 'Player';
-        const displayRole = (user.role || 'player').charAt(0).toUpperCase() + (user.role || 'player').slice(1);
+        const displayRole = user.roleLabel
+          || (user.role || 'player').charAt(0).toUpperCase() + (user.role || 'player').slice(1);
 
         const avatarEl = document.getElementById('dashboard-user-avatar');
         const usernameEl = document.getElementById('dashboard-username');

@@ -29,8 +29,8 @@
         .then(user => {
           if (!user) return;
           document.getElementById('team-page-username').textContent = user.username || 'Captain';
-          document.getElementById('team-page-role').textContent = (user.role || 'Captain')
-            .replace(/^./, character => character.toUpperCase());
+          document.getElementById('team-page-role').textContent = user.roleLabel
+            || (user.role || 'Captain').replace(/^./, character => character.toUpperCase());
           if (user.avatar_url) document.getElementById('team-page-user-avatar').src = user.avatar_url;
           document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
         })

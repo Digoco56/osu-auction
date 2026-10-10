@@ -32,7 +32,8 @@ function createPlayerInfo(player) {
   const name = document.createElement('span');
   name.textContent = player.username;
   const role = document.createElement('small');
-  role.textContent = (player.role || 'player').replace(/^./, character => character.toUpperCase());
+  role.textContent = player.roleLabel
+    || (player.role || 'player').replace(/^./, character => character.toUpperCase());
   details.append(name, role);
   if (player.canParticipate === false) {
     const marker = document.createElement('small');

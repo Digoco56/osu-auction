@@ -21,7 +21,7 @@
       tooltip.className = 'team-member-tooltip';
       tooltip.textContent = team.members.map(member => {
         const rank = member.globalRank == null ? 'Global —' : `Global #${Number(member.globalRank).toLocaleString('en-US')}`;
-        return `${member.username} · ${member.role} · ${rank}`;
+        return `${member.username} · ${member.roleLabel || member.role} · ${rank}`;
       }).join('\n');
       count.append(tooltip);
       details.append(name, captain, count);
@@ -33,7 +33,8 @@
       if (!userResponse.ok || !teamsResponse.ok) { window.location.href = '/'; return; }
       const [user, teams] = await Promise.all([userResponse.json(), teamsResponse.json()]);
       document.getElementById('teams-username').textContent = user.username || 'Player';
-      document.getElementById('teams-role').textContent = (user.role || 'player').replace(/^./, character => character.toUpperCase());
+      document.getElementById('teams-role').textContent = user.roleLabel
+        || (user.role || 'player').replace(/^./, character => character.toUpperCase());
       if (user.avatar_url) document.getElementById('teams-user-avatar').src = user.avatar_url;
       document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
       document.getElementById('teams-count').textContent = `${teams.length} teams`;

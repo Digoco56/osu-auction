@@ -56,7 +56,7 @@ function formatRank(rank) {
       }
       const role = document.createElement('p');
       role.className = `player-directory-role role-${String(player.role || 'player').toLowerCase()}`;
-      role.textContent = player.role;
+      role.textContent = player.role_label || player.role;
       const team = document.createElement('p');
       team.className = `player-directory-team${player.team_name ? '' : ' is-unassigned'}`;
       team.textContent = player.team_name || 'No team';
@@ -140,8 +140,8 @@ function formatRank(rank) {
           playersResponse.json()
         ]);
         document.getElementById('dashboard-username').textContent = user.username || 'Player';
-        document.getElementById('user-role').textContent = (user.role || 'player')
-          .replace(/^./, character => character.toUpperCase());
+        document.getElementById('user-role').textContent = user.roleLabel
+          || (user.role || 'player').replace(/^./, character => character.toUpperCase());
         if (user.avatar_url) document.getElementById('dashboard-user-avatar').src = user.avatar_url;
         document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
 

@@ -20,6 +20,18 @@ const BWS_MAX_RANK = 99999;
 const BWS_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const REGISTRATION_START_AT_SEED = process.env.REGISTRATION_START_AT || null;
 const REGISTRATION_END_AT_SEED = process.env.REGISTRATION_END_AT || null;
+const STAFF_ROLES = [
+    { id: 'host', label: 'Host' },
+    { id: 'referee', label: 'Referee' },
+    { id: 'mapper', label: 'Mapper' },
+    { id: 'gfx', label: 'GFX' },
+    { id: 'pooler', label: 'Pooler' },
+    { id: 'playtester', label: 'Playtester' },
+    { id: 'sheeter', label: 'Sheeter' },
+    { id: 'streamer', label: 'Streamer', allowedForPlayerOrCaptain: true },
+    { id: 'commentator', label: 'Commentator', allowedForPlayerOrCaptain: true },
+    { id: 'custom_song', label: 'Custom Song' }
+];
 let osuApiToken = null;
 let osuApiTokenExpiresAt = 0;
 let playerEligibilityRefreshInProgress = false;
@@ -31,6 +43,7 @@ async function initializeDatabase() {
             user_id BIGINT PRIMARY KEY,
             username TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'player',
+            staff_roles TEXT[] NOT NULL DEFAULT '{}',
             avatar_url TEXT,
             discord_id TEXT,
             discord_username TEXT,
@@ -45,6 +58,7 @@ async function initializeDatabase() {
             participation_override BOOLEAN
         );
         ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS staff_roles TEXT[] NOT NULL DEFAULT '{}';
         ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_id TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_username TEXT;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_registered_player BOOLEAN NOT NULL DEFAULT FALSE;
@@ -200,6 +214,31 @@ function saveSession(req) {
     return new Promise((resolve, reject) => {
         req.session.save(error => (error ? reject(error) : resolve()));
     });
+}
+
+function getStaffRoleLabels(staffRoleIds = []) {
+    const selectedRoles = new Set(staffRoleIds);
+    return STAFF_ROLES.filter(role => selectedRoles.has(role.id)).map(role => role.label);
+}
+
+function formatRoleLabels(role, staffRoleIds = []) {
+    const primaryRole = String(role || 'player');
+    const primaryRoleLabel = primaryRole.replace(/^./, character => character.toUpperCase());
+    return [primaryRoleLabel, ...getStaffRoleLabels(staffRoleIds)].join(' · ');
+}
+
+function normalizeStaffRoles(staffRoles, primaryRole) {
+    if (!Array.isArray(staffRoles)) return null;
+    const selectedRoles = new Set(staffRoles);
+    if (selectedRoles.size !== staffRoles.length
+        || staffRoles.some(role => typeof role !== 'string' || !STAFF_ROLES.some(item => item.id === role))) {
+        return null;
+    }
+    if (['player', 'captain'].includes(primaryRole)
+        && staffRoles.some(role => !STAFF_ROLES.find(item => item.id === role).allowedForPlayerOrCaptain)) {
+        return null;
+    }
+    return STAFF_ROLES.filter(role => selectedRoles.has(role.id)).map(role => role.id);
 }
 
 function discordConfigurationIsComplete() {
@@ -709,7 +748,7 @@ app.get('/api/user', async (req, res) => {
     }
 
     const result = await db.query(
-        `SELECT role, is_registered_player, player_eligibility_status, participation_override
+        `SELECT role, staff_roles, is_registered_player, player_eligibility_status, participation_override
          FROM users WHERE user_id = $1`,
         [req.session.user.id]
     );
@@ -718,6 +757,8 @@ app.get('/api/user', async (req, res) => {
     res.json({
         ...req.session.user,
         role: result.rows[0]?.role || 'player',
+        staffRoles: getStaffRoleLabels(result.rows[0]?.staff_roles),
+        roleLabel: formatRoleLabels(result.rows[0]?.role, result.rows[0]?.staff_roles),
         isRegisteredPlayer: Boolean(result.rows[0]?.is_registered_player),
         playerEligibilityStatus: result.rows[0]?.player_eligibility_status || 'not_registered',
         canParticipate: canPlayerParticipate(
@@ -913,6 +954,7 @@ app.get('/api/players', async (req, res) => {
             u.username,
             u.avatar_url,
             u.role,
+            u.staff_roles,
             u.profile_country_code,
             u.global_rank,
             u.bws_badge_count,
@@ -931,6 +973,8 @@ app.get('/api/players', async (req, res) => {
     `);
     res.json(players.rows.map(player => ({
         ...player,
+        role_label: formatRoleLabels(player.role, player.staff_roles),
+        staff_roles: getStaffRoleLabels(player.staff_roles),
         can_participate: canPlayerParticipate(
             player.player_eligibility_status,
             player.participation_override
@@ -953,6 +997,7 @@ app.get('/api/teams', async (req, res) => {
                     json_build_object(
                         'username', member.username,
                         'role', member.role,
+                        'staffRoles', member.staff_roles,
                         'globalRank', member.global_rank
                     )
                     ORDER BY member.username
@@ -973,7 +1018,11 @@ app.get('/api/teams', async (req, res) => {
         imageUrl: team.image_url,
         captainUsername: team.captain_username,
         memberCount: team.member_count,
-        members: team.members
+        members: team.members.map(member => ({
+            ...member,
+            roleLabel: formatRoleLabels(member.role, member.staffRoles),
+            staffRoles: getStaffRoleLabels(member.staffRoles)
+        }))
     })));
 });
 
@@ -1523,6 +1572,7 @@ app.get('/admin/logged-users', async (req, res) => {
                         u.user_id,
                         u.username,
                         u.role,
+                        u.staff_roles,
                         COALESCE(u.avatar_url, (
                                 SELECT s.avatar_url
                                 FROM sessions s
@@ -1541,7 +1591,7 @@ app.get('/admin/logged-users', async (req, res) => {
         `);
 
 
-    res.json(users.rows);
+    res.json({ users: users.rows, staffRoles: STAFF_ROLES });
 });
 
 app.get('/admin/teams', requireAdmin, async (req, res) => {
@@ -1554,26 +1604,30 @@ app.get('/admin/teams', requireAdmin, async (req, res) => {
 });
 
 
-app.post('/admin/set-role', express.json(), async (req, res) => {
-    const { userId, role } = req.body;
+app.post('/admin/set-role', requireAdmin, express.json(), async (req, res) => {
+    const { userId, role, staffRoles } = req.body || {};
+    const parsedUserId = Number(userId);
+    const validPrimaryRoles = new Set(['admin', 'captain', 'player']);
+    const normalizedStaffRoles = normalizeStaffRoles(staffRoles, role);
 
-    if (!req.session.user) return res.status(401).send('Not authenticated');
-
-    const adminCheck = await db.query(
-        'SELECT role FROM users WHERE user_id = $1',
-        [req.session.user.id]
-    );
-
-    if (adminCheck.rows[0]?.role !== 'admin') {
-        return res.status(403).send('Access denied');
+    if (!Number.isSafeInteger(parsedUserId) || parsedUserId < 1) {
+        return res.status(400).json({ error: 'A valid user is required.' });
+    }
+    if (!validPrimaryRoles.has(role)) {
+        return res.status(400).json({ error: 'A valid primary role is required.' });
+    }
+    if (!normalizedStaffRoles) {
+        return res.status(400).json({
+            error: 'Invalid staff roles. Players and captains may only have Streamer and Commentator roles.'
+        });
     }
 
-    await db.query(
-        'UPDATE users SET role = $1 WHERE user_id = $2',
-        [role, userId]
+    const result = await db.query(
+        'UPDATE users SET role = $1, staff_roles = $2 WHERE user_id = $3 RETURNING user_id',
+        [role, normalizedStaffRoles, parsedUserId]
     );
-
-    res.sendStatus(200);
+    if (!result.rowCount) return res.status(404).json({ error: 'User not found.' });
+    res.sendStatus(204);
 });
 
 app.post('/admin/set-participation', requireAdmin, express.json(), async (req, res) => {
@@ -1675,6 +1729,7 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
                 u.username,
                 u.avatar_url,
                 u.role,
+                u.staff_roles,
                 u.player_eligibility_status,
                 u.participation_override
             FROM teams t
@@ -1683,7 +1738,7 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
             ORDER BY t.name, u.username
         `),
         db.query(`
-                 SELECT u.user_id, u.username, u.avatar_url, u.role,
+                 SELECT u.user_id, u.username, u.avatar_url, u.role, u.staff_roles,
                      u.player_eligibility_status, u.participation_override
             FROM users u
             LEFT JOIN team_members tm ON tm.user_id = u.user_id
@@ -1709,6 +1764,8 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
                 username: row.username,
                 avatarUrl: row.avatar_url,
                 role: row.role,
+                staffRoles: getStaffRoleLabels(row.staff_roles),
+                roleLabel: formatRoleLabels(row.role, row.staff_roles),
                 canParticipate: canPlayerParticipate(row.player_eligibility_status, row.participation_override)
             });
         }
@@ -1721,6 +1778,8 @@ app.get('/admin/team-management', requireAdmin, async (req, res) => {
             username: player.username,
             avatarUrl: player.avatar_url,
             role: player.role,
+            staffRoles: getStaffRoleLabels(player.staff_roles),
+            roleLabel: formatRoleLabels(player.role, player.staff_roles),
             canParticipate: canPlayerParticipate(player.player_eligibility_status, player.participation_override)
         }))
     });
