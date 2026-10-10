@@ -242,11 +242,11 @@ footer {
 }
 
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
-  padding: 1.1rem max(1.25rem, calc((100% - 1100px) / 2));
+  padding: 1.1rem 1.25rem;
   border-bottom: 1px solid var(--line);
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(12px);
@@ -259,6 +259,7 @@ footer {
   font-weight: 700;
   letter-spacing: 0.03em;
   color: var(--text);
+  white-space: nowrap;
 }
 
 .brand-mark {
@@ -285,10 +286,15 @@ footer {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  justify-content: flex-start;
 }
 
 .topbar nav a {
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: var(--text-soft);
   text-decoration: none;
   transition: color 0.2s ease;
@@ -306,17 +312,20 @@ footer {
   border: 0;
   background: transparent;
   color: var(--text);
+  min-width: 0;
 }
 
 .account-area {
   display: flex;
   align-items: center;
   gap: 1rem;
+  max-width: min(36vw, 28rem);
 }
 
 .user-pill img {
   width: 2.5rem;
   height: 2.5rem;
+  flex: 0 0 auto;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid rgba(255,255,255,0.12);
@@ -343,6 +352,7 @@ footer {
 }
 
 .user-role.role-badges {
+  width: fit-content;
   max-width: 20rem;
   margin-top: 0.3rem;
   font-size: 0.65rem;
@@ -367,6 +377,7 @@ footer {
 }
 
 .logout-link {
+  flex: 0 0 auto;
   padding-left: 1rem;
   border-left: 1px solid var(--line);
   color: var(--text-soft);
@@ -1452,8 +1463,13 @@ footer {
   }
 
   .topbar {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
     align-items: flex-start;
+  }
+
+  .topbar nav {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .dashboard-heading {
@@ -1463,6 +1479,7 @@ footer {
 
   .account-area {
     width: 100%;
+    max-width: none;
     justify-content: space-between;
   }
 
