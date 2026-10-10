@@ -376,6 +376,12 @@ footer {
   color: #fcd34d;
 }
 
+.role-badge.role-captain {
+  border-color: rgba(100, 211, 255, 0.4);
+  background: rgba(100, 211, 255, 0.1);
+  color: var(--secondary-soft);
+}
+
 .logout-link {
   flex: 0 0 auto;
   padding-left: 1rem;

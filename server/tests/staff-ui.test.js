@@ -9,7 +9,10 @@ class Element {
         this.tagName = tagName;
         this.children = [];
         this.textContent = '';
-        this.classList = { toggle: (name, value) => { this[name] = value; } };
+        this.classList = {
+            toggle: (name, value) => { this[name] = value; },
+            contains: name => (this.className || '').split(/\s+/).includes(name)
+        };
     }
     replaceChildren(...children) {
         this.textContent = '';
@@ -30,15 +33,32 @@ function loadUI() {
     return context;
 }
 
-test('players and captains keep one combined label in headers and cards', () => {
+test('players and captains keep one combined label in directory cards', () => {
     const context = loadUI();
     for (const primary of ['player', 'captain']) {
         for (const property of ['staffRoles', 'staff_roles']) {
             const element = new Element();
+            element.className = 'player-directory-role';
             context.renderUserRoles(element, { role: primary, [property]: ['Streamer', 'Commentator'] });
             assert.equal(element.textContent, `${primary === 'player' ? 'Player' : 'Captain'} \u00b7 Streamer \u00b7 Commentator`);
             assert.equal(element.children.length, 0);
             assert.equal(element['role-badges'], false);
+        }
+    }
+});
+
+test('players and captains display separate badges in the account header', () => {
+    const context = loadUI();
+    for (const primary of ['player', 'captain']) {
+        for (const staffRoles of [[], ['Streamer'], ['Commentator'], ['Streamer', 'Commentator']]) {
+            const element = new Element('span');
+            element.className = 'user-role';
+            context.renderUserRoles(element, { role: primary, staffRoles });
+            assert.equal(element['role-badges'], true);
+            assert.deepEqual(element.children.map(child => child.textContent), [
+                primary === 'player' ? 'Player' : 'Captain', ...staffRoles
+            ]);
+            assert.equal(element.children[0].className, `role-badge role-${primary}`);
         }
     }
 });
@@ -51,8 +71,9 @@ test('other roles get separate badges and replacing roles clears the old display
     assert.deepEqual(element.children.map(child => child.textContent), ['Admin', 'Host', 'Mapper', 'GFX']);
     assert.equal(element.children[0].className, 'role-badge role-admin');
     context.renderUserRoles(element, { role: 'player', staffRoles: [] });
-    assert.equal(element.textContent, 'Player');
-    assert.equal(element.children.length, 0);
+    assert.equal(element.children.length, 1);
+    assert.equal(element.children[0].textContent, 'Player');
+    assert.equal(element['role-badges'], true);
 });
 
 test('staff sections render large headings and every member beneath their role', () => {

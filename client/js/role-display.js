@@ -3,7 +3,8 @@ function renderUserRoles(element, user) {
   const primaryLabel = primaryRole.replace(/^./, character => character.toUpperCase());
   const staffLabels = user.staffRoles || user.staff_roles || [];
   const labels = [primaryLabel, ...staffLabels];
-  const combined = ['player', 'captain'].includes(primaryRole);
+  const combined = ['player', 'captain'].includes(primaryRole)
+    && element.classList.contains('player-directory-role');
 
   element.replaceChildren();
   element.classList.toggle('role-badges', !combined);
