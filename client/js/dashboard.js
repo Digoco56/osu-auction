@@ -88,9 +88,6 @@
 
         const user = await response.json();
         const username = user.username || 'Player';
-        const displayRole = user.roleLabel
-          || (user.role || 'player').charAt(0).toUpperCase() + (user.role || 'player').slice(1);
-
         const avatarEl = document.getElementById('dashboard-user-avatar');
         const usernameEl = document.getElementById('dashboard-username');
         const roleEl = document.getElementById('user-role');
@@ -103,7 +100,7 @@
         }
 
         if (usernameEl) usernameEl.textContent = username;
-        if (roleEl) roleEl.textContent = displayRole;
+        if (roleEl) renderUserRoles(roleEl, user);
 
         const isAdmin = (user.role || '').toLowerCase() === 'admin';
         if (adminNavLink) {

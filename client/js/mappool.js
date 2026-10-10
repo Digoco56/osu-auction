@@ -7,8 +7,7 @@ fetch('/api/user')
     if (!user) return;
     document.getElementById('mappool-account-area').hidden = false;
     document.getElementById('mappool-username').textContent = user.username || 'Player';
-    document.getElementById('mappool-role').textContent = user.roleLabel
-      || (user.role || 'player').replace(/^./, character => character.toUpperCase());
+    renderUserRoles(document.getElementById('mappool-role'), user);
     if (user.avatar_url) document.getElementById('mappool-user-avatar').src = user.avatar_url;
     document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
   })

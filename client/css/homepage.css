@@ -332,6 +332,40 @@ footer {
   letter-spacing: 0.08em;
 }
 
+.user-pill > div {
+  min-width: 0;
+}
+
+.role-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.user-role.role-badges {
+  max-width: 20rem;
+  margin-top: 0.3rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.03em;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(157, 180, 255, 0.08);
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.role-badge.role-admin {
+  border-color: rgba(244, 201, 93, 0.45);
+  background: rgba(244, 201, 93, 0.12);
+  color: #fcd34d;
+}
+
 .logout-link {
   padding-left: 1rem;
   border-left: 1px solid var(--line);
@@ -1164,6 +1198,56 @@ footer {
   border-style: dashed;
   background: transparent;
   color: var(--text-soft);
+}
+
+.player-directory-roles {
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+}
+
+.player-directory-card > div {
+  min-width: 0;
+}
+
+.staff-sections {
+  display: grid;
+  gap: 2rem;
+}
+
+.staff-section > h2 {
+  margin: 0 0 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.6rem;
+}
+
+.staff-members-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.staff-member {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem;
+}
+
+.staff-member-name {
+  color: var(--primary-soft);
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.staff-member-name:hover {
+  color: var(--text);
+  text-decoration: underline;
 }
 
 .player-meta {

@@ -33,8 +33,7 @@
       if (!userResponse.ok || !teamsResponse.ok) { window.location.href = '/'; return; }
       const [user, teams] = await Promise.all([userResponse.json(), teamsResponse.json()]);
       document.getElementById('teams-username').textContent = user.username || 'Player';
-      document.getElementById('teams-role').textContent = user.roleLabel
-        || (user.role || 'player').replace(/^./, character => character.toUpperCase());
+      renderUserRoles(document.getElementById('teams-role'), user);
       if (user.avatar_url) document.getElementById('teams-user-avatar').src = user.avatar_url;
       document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
       document.getElementById('teams-count').textContent = `${teams.length} teams`;

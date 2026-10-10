@@ -54,9 +54,12 @@ function formatRank(rank) {
         ineligibleMarker.textContent = 'Cannot participate';
         nameRow.append(ineligibleMarker);
       }
-      const role = document.createElement('p');
-      role.className = `player-directory-role role-${String(player.role || 'player').toLowerCase()}`;
-      role.textContent = player.role_label || player.role;
+      const combinedRoles = ['player', 'captain'].includes(player.role || 'player');
+      const role = document.createElement(combinedRoles ? 'p' : 'div');
+      role.className = combinedRoles
+        ? `player-directory-role role-${player.role || 'player'}`
+        : 'player-directory-roles';
+      renderUserRoles(role, player);
       const team = document.createElement('p');
       team.className = `player-directory-team${player.team_name ? '' : ' is-unassigned'}`;
       team.textContent = player.team_name || 'No team';
@@ -140,8 +143,7 @@ function formatRank(rank) {
           playersResponse.json()
         ]);
         document.getElementById('dashboard-username').textContent = user.username || 'Player';
-        document.getElementById('user-role').textContent = user.roleLabel
-          || (user.role || 'player').replace(/^./, character => character.toUpperCase());
+        renderUserRoles(document.getElementById('user-role'), user);
         if (user.avatar_url) document.getElementById('dashboard-user-avatar').src = user.avatar_url;
         document.getElementById('admin-nav-link').hidden = (user.role || '').toLowerCase() !== 'admin';
 

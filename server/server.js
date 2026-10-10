@@ -5,6 +5,7 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const db = require('./db');
+const { STAFF_ROLES, getStaffRoleLabels, formatRoleLabels, normalizeStaffRoles, buildStaffSections } = require('./staff-roles');
 
 const app = express();
 const mappoolCache = new Map();
@@ -20,18 +21,6 @@ const BWS_MAX_RANK = 99999;
 const BWS_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const REGISTRATION_START_AT_SEED = process.env.REGISTRATION_START_AT || null;
 const REGISTRATION_END_AT_SEED = process.env.REGISTRATION_END_AT || null;
-const STAFF_ROLES = [
-    { id: 'host', label: 'Host' },
-    { id: 'referee', label: 'Referee' },
-    { id: 'mapper', label: 'Mapper' },
-    { id: 'gfx', label: 'GFX' },
-    { id: 'pooler', label: 'Pooler' },
-    { id: 'playtester', label: 'Playtester' },
-    { id: 'sheeter', label: 'Sheeter' },
-    { id: 'streamer', label: 'Streamer', allowedForPlayerOrCaptain: true },
-    { id: 'commentator', label: 'Commentator', allowedForPlayerOrCaptain: true },
-    { id: 'custom_song', label: 'Custom Song' }
-];
 let osuApiToken = null;
 let osuApiTokenExpiresAt = 0;
 let playerEligibilityRefreshInProgress = false;
@@ -214,31 +203,6 @@ function saveSession(req) {
     return new Promise((resolve, reject) => {
         req.session.save(error => (error ? reject(error) : resolve()));
     });
-}
-
-function getStaffRoleLabels(staffRoleIds = []) {
-    const selectedRoles = new Set(staffRoleIds);
-    return STAFF_ROLES.filter(role => selectedRoles.has(role.id)).map(role => role.label);
-}
-
-function formatRoleLabels(role, staffRoleIds = []) {
-    const primaryRole = String(role || 'player');
-    const primaryRoleLabel = primaryRole.replace(/^./, character => character.toUpperCase());
-    return [primaryRoleLabel, ...getStaffRoleLabels(staffRoleIds)].join(' · ');
-}
-
-function normalizeStaffRoles(staffRoles, primaryRole) {
-    if (!Array.isArray(staffRoles)) return null;
-    const selectedRoles = new Set(staffRoles);
-    if (selectedRoles.size !== staffRoles.length
-        || staffRoles.some(role => typeof role !== 'string' || !STAFF_ROLES.some(item => item.id === role))) {
-        return null;
-    }
-    if (['player', 'captain'].includes(primaryRole)
-        && staffRoles.some(role => !STAFF_ROLES.find(item => item.id === role).allowedForPlayerOrCaptain)) {
-        return null;
-    }
-    return STAFF_ROLES.filter(role => selectedRoles.has(role.id)).map(role => role.id);
 }
 
 function discordConfigurationIsComplete() {
@@ -940,6 +904,26 @@ app.put('/api/captain/team', requireTeamManager, express.json({ limit: '4mb' }),
         }
         console.error('Could not update captain team:', error.message);
         res.status(500).json({ error: 'Could not update team.' });
+    }
+});
+
+app.get('/api/staff', async (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const result = await db.query(`
+            SELECT user_id, username, avatar_url, profile_country_code, role, staff_roles
+            FROM users
+            WHERE role = 'admin' OR cardinality(staff_roles) > 0
+            ORDER BY LOWER(username), user_id
+        `);
+        res.set('Cache-Control', 'no-store');
+        res.json({ sections: buildStaffSections(result.rows) });
+    } catch (error) {
+        console.error('Could not load staff members:', error.message);
+        res.status(500).json({ error: 'Staff members could not be loaded right now.' });
     }
 });
 

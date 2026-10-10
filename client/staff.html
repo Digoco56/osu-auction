@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staff Members | osu! Auction</title>
+  <link rel="stylesheet" href="css/homepage.css">
+</head>
+
+<body>
+  <div class="dashboard-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">o!</div>
+        <span>osu! Auction</span>
+      </div>
+      <nav>
+        <a href="/dashboard.html">Home</a>
+        <a href="/players.html">Players</a>
+        <a href="/teams.html">Teams</a>
+        <a href="/mappool.html">Mappool</a>
+        <a href="/staff.html" aria-current="page">Staff Members</a>
+        <a href="#">Rules</a>
+        <a id="admin-nav-link" href="/admin.html" class="nav-admin-link" hidden>Admin Panel</a>
+      </nav>
+      <div class="account-area">
+        <div class="user-pill">
+          <img id="staff-user-avatar" src="https://a.ppy.sh/1234567" alt="User avatar">
+          <div>
+            <span id="staff-username">Player</span>
+            <span id="staff-role" class="user-role">Player</span>
+          </div>
+        </div>
+        <a href="/logout" class="logout-link">Logout</a>
+      </div>
+    </header>
+
+    <main class="dashboard-content">
+      <section class="dashboard-heading" aria-labelledby="staff-title">
+        <div>
+          <p class="eyebrow">Tournament staff</p>
+          <h1 id="staff-title">Staff Members</h1>
+        </div>
+        <p class="timezone-note">Members appear under every role they hold.</p>
+      </section>
+      <div id="staff-sections" class="staff-sections" aria-live="polite">
+        <p class="empty-lineup">Loading staff members...</p>
+      </div>
+    </main>
+  </div>
+  <script src="js/role-display.js"></script>
+  <script src="js/staff.js"></script>
+</body>
+
+</html>
